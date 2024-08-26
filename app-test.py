@@ -41,12 +41,23 @@ class MainWindow(Screen):
             t1.start()
             print("Started server")
 
-    def disconnect_button():
+
+    def disconnect_button(i):
+
+        global server, client
 
         print("Closing server")
-        t1.join()
-        Server.close(server, client)
-        print("Closed server")
+        try:
+
+            t1.join()
+
+            Server.close(server, client)
+
+            print("Closed server")
+
+        except RuntimeError:
+
+            print("[ERROR 00149] Server already closed")
 
 
 class SecondWindow(Screen):
