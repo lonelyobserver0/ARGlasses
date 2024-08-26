@@ -1,0 +1,121 @@
+WindowManager:
+    MainWindow:
+    SecondWindow:
+    ThirdWindow:
+
+<MainWindow>:
+
+    name: "home"
+
+    GridLayout:
+        cols: 1
+
+        GridLayout:
+            cols: 2
+            size_hint: (1, 0.2)
+
+            Label:
+                text: "Welcome to ARGlasses"
+                size_hint: (0.75, 0.25)
+
+            GridLayout:
+                rows: 2
+                size_hint: (0.25, 0.25)
+
+                Button:
+                    text: "Connect"
+                    size_hint: (0.25, 0.25)
+                    on_press: root.connect_button()
+
+                Button:
+                    text: "Disconnect"
+                    size_hint: (0.25, 0.25)
+                    on_press: root.disconnect_button()
+
+        Label:
+            text: "Available features:"
+            size_hint: (1, 0.15)
+
+        Button:
+            text: "Send Notes to device"
+            on_release:
+                app.root.current = "send_notes"
+                root.manager.transition.direction = "left"
+
+        Button:
+            text: "WEB features"
+            on_release:
+                app.root.current = "web_features"
+                root.manager.transition.direction = "left"
+
+
+<SecondWindow>:
+
+    name: "send_notes"
+    notes: notes
+
+    GridLayout:
+        cols:1
+        size: root.width, root.height
+        pos: 0, 0
+
+        GridLayout:
+            cols:1
+
+            Label:
+                text: "PAGE 1 - Notes"
+                size_hint: (1, 0.25)
+
+            TextInput:
+                multiline: True
+                id: notes
+                hint_text: "Write here notes to be displayed on screen"
+                focus: True
+
+            Button:
+                text:"Send to device"
+                size_hint: (1, 0.5)
+                on_press: root.send_notes()
+
+            Button:
+                text: "Home"
+                size_hint: (0.2, 0.2)
+                on_release:
+                    app.root.current = "home"
+                    root.manager.transition.direction = "right"
+
+<ThirdWindow>:
+
+    name: "web_features"
+    search_query: search_query
+
+    GridLayout:
+        cols:1
+        size: root.width, root.height
+        pos: 0, 0
+
+        GridLayout:
+            cols:1
+
+            Label:
+                text: "PAGE 2 - WEB features"
+                size_hint: (1, 0.25)
+
+            TextInput:
+                multiline: False
+                size_hint: (1, 0.25)
+                id: search_query
+                hint_text: "Input the resource you want to reach"
+                focus: True
+
+            Button:
+                text:"Search"
+                size_hint: (1, 0.5)
+                on_press: root.web_search()
+
+            Button:
+                text: "Home"
+                size_hint: (0.2, 0.2)
+                on_release:
+                    app.root.current = "home"
+                    root.manager.transition.direction = "right"
