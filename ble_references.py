@@ -63,10 +63,9 @@ class Client:
     @staticmethod
     def send(client, data):
         try:
-            message = data
-            client.send(message.encode('utf-8'))
+            client.send(data.encode('utf-8'))
 
-        except OSError:
+        except Exception:
             print("Send error")
 
     @staticmethod
@@ -80,7 +79,7 @@ class Client:
                 print(data)
             return data
 
-        except OSError:
+        except Exception:
             print("Receive error")
 
     @staticmethod
