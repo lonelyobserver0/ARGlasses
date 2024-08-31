@@ -19,34 +19,58 @@ kivy.require('2.1.0')
 q = Queue()
 server, client = None, None
 t1 = Thread(target=Server.receive, args=(client, q), daemon=True)
-ble_flag = 0
+ble_flag = 1
 
 
 class MainWindow(Screen):
 
-    def connect_button(i):
+    logs = ObjectProperty(None)
+
+    i = 0
+
+    def log(self, log):
+
+        if self.i == 10:
+            self.logs.text = ""
+            self.i = 0
+
+        log = self.logs.text + "\n" + log
+        self.logs.text = log
+
+        self.i += 1
+
+    def connect_button(self):
 
         global server, client
         server, client = Server.connect()
 
         if server == 1 and client == 1:
 
-            print("[ERROR 00148] Inactive network detected during socket execution. Activate Bluetooth before trying again.")
+            print("[ ERROR 00148 ] Inactive network detected during socket execution. Activate Bluetooth before trying again.")
+            self.log("[ ERROR 00148 ] Inactive network detected during socket execution. Activate Bluetooth before trying again.")
+
             global ble_flag
             ble_flag = 1
 
         else:
 
             print("Starting server")
+            self.log("Starting server")
+
             t1.start()
-            print("Started server")
+
+            print("Server started")
+            self.log("Server started")
+            
+            ble_flag = 0
 
 
-    def disconnect_button(i):
+    def disconnect_button(self):
 
         global server, client
 
         print("Closing server")
+        self.log("Closing server")
         try:
 
             t1.join()
@@ -54,15 +78,32 @@ class MainWindow(Screen):
             Server.close(server, client)
 
             print("Closed server")
+            self.log("Closed server")
 
         except RuntimeError:
 
-            print("[ERROR 00149] Server already closed")
+            print("[ ERROR 00149 ] Server already closed")
+            self.log("[ ERROR 00149 ] Server already closed")
 
 
 class SecondWindow(Screen):
 
     notes = ObjectProperty(None)
+    logs = ObjectProperty(None)
+
+    i = 0
+
+    def log(self, log):
+
+        if self.i == 10:
+            self.logs.text = ""
+            self.i = 0
+
+        log = self.logs.text + "\n" + log
+        self.logs.text = log
+
+        self.i += 1
+
 
     def send_notes(self):
 
@@ -74,15 +115,31 @@ class SecondWindow(Screen):
         else:
 
             if ble_flag == 1:
-                pass
+                print("[ ERROR 00150 ] Bluetooth daemon not started")
+                self.log("[ ERROR 00149 ] Server already closed")
 
             else:
                 Server.send(client, notes)
+                self.log("Data wa sent")
 
 
 class ThirdWindow(Screen):
 
     search_query = ObjectProperty(None)
+    logs = ObjectProperty(None)
+
+    i = 0
+
+    def log(self, log):
+
+        if self.i == 10:
+            self.logs.text = ""
+            self.i = 0
+
+        log = self.logs.text + "\n" + log
+        self.logs.text = log
+
+        self.i += 1
 
     def web_search(self):
 
@@ -92,7 +149,7 @@ class ThirdWindow(Screen):
             pass
         else:
             print(query)
-            # Search and display the content of the URL (query)
+            # Query to search on web
 
 
 class WindowManager(ScreenManager):

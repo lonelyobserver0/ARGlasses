@@ -6,6 +6,7 @@ WindowManager:
 <MainWindow>:
 
     name: "home"
+    logs: logs
 
     GridLayout:
         cols: 1
@@ -48,11 +49,15 @@ WindowManager:
                 app.root.current = "web_features"
                 root.manager.transition.direction = "left"
 
+        Label:
+            id: logs
+
 
 <SecondWindow>:
 
     name: "send_notes"
     notes: notes
+    logs: logs
 
     GridLayout:
         cols:1
@@ -84,10 +89,14 @@ WindowManager:
                     app.root.current = "home"
                     root.manager.transition.direction = "right"
 
+            Label:
+                id: logs
+
 <ThirdWindow>:
 
     name: "web_features"
     search_query: search_query
+    logs: logs
 
     GridLayout:
         cols:1
@@ -119,3 +128,6 @@ WindowManager:
                 on_release:
                     app.root.current = "home"
                     root.manager.transition.direction = "right"
+
+            Label:
+                id: logs
