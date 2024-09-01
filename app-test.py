@@ -13,6 +13,8 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from queue import Queue
 from threading import Thread
 from ble_references import Server
+import requests
+import re
 
 kivy.require('2.1.0')
 
@@ -120,12 +122,12 @@ class SecondWindow(Screen):
 
             else:
                 Server.send(client, notes)
-                self.log("Data wa sent")
+                self.log("Data was sent")
 
 
 class ThirdWindow(Screen):
 
-    search_query = ObjectProperty(None)
+    query = ObjectProperty(None)
     logs = ObjectProperty(None)
 
     i = 0
@@ -143,13 +145,18 @@ class ThirdWindow(Screen):
 
     def web_search(self):
 
-        query = self.search_query.text
+        query = self.query.text
 
         if not query:
             pass
         else:
-            print(query)
-            # Query to search on web
+            computed_query = re.sub(r'[ ]', '+', query)
+            search_query = f"https://duckduckgo.com/?q={computed_query}&ia=web"
+            #   response = requests.get(search_query)
+            #   page_source = response.text
+            self.log(computed_query)
+            self.log(search_query)
+            print(search_query)
 
 
 class WindowManager(ScreenManager):
