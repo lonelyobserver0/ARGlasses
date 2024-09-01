@@ -19,13 +19,29 @@ except Exception:
 def ble_receive():
 
     if ble_f:
+            
             data = Client.receive(ble)
 
             if data != "None":
-                ble_notes(data)
+
+                if data.startswith("notes-->"):
+                    data.replace("notes-->", "")
+                    ble_notes(data)
+                
+                elif data.startswith("web-->"):
+                    data.replace("web-->", "")
+                    ble_web(data)
 
 
 def ble_notes(data):
+
+    with canvas(device) as draw:
+        
+        draw.rectangle((device_width - 50, 10, device_width - 100, 60), outline="white", fill="black")
+        draw.text((75, 35), data, fill="white")
+
+
+def ble_web(data):
 
     with canvas(device) as draw:
         
