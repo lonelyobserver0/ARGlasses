@@ -4,6 +4,7 @@ from kivy.app import App
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.pagelayout import PageLayout
 from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
@@ -11,6 +12,8 @@ from kivy.uix.widget import Widget
 from kivy.properties import ObjectProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.graphics import Color, Rectangle
+from kivy.input import MotionEvent
+from kivy.graphics import Line
 from queue import Queue
 from threading import Thread
 from ble_references import Server
@@ -155,6 +158,41 @@ class ThirdWindow(Screen):
             self.log(computed_query)
             self.log(search_query)
             print(search_query)
+
+
+class MousePad(Widget):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.line = None  # Rappresenta la linea che disegneremo
+
+    def on_touch_down(self, touch):
+        # Quando premiamo con il mouse, iniziamo una linea
+        with self.canvas:
+            Color(1, 0, 0, 1)  # Colore rosso per la linea
+            self.line = Line(points=(touch.x, touch.y))
+
+    def on_touch_move(self, touch):
+        # Quando il mouse si muove, aggiungiamo punti alla linea
+        if self.line:
+            self.line.points += [touch.x, touch.y]
+
+
+class FourthWindow(Screen):
+
+    logs = ObjectProperty(None)
+
+    i = 0
+
+    def log(self, log):
+
+        if self.i == 1:
+            self.logs.text = ""
+            self.i = 0
+
+        self.logs.text = log
+
+        self.i += 1
 
 
 class WindowManager(ScreenManager):

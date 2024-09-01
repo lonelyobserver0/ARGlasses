@@ -2,6 +2,7 @@ WindowManager:
     MainWindow:
     SecondWindow:
     ThirdWindow:
+    FourthWindow:
 
 
 <MainWindow>:
@@ -48,6 +49,12 @@ WindowManager:
             text: "WEB features"
             on_release:
                 app.root.current = "web_features"
+                root.manager.transition.direction = "left"
+
+        Button:
+            text: "Mousepad"
+            on_release:
+                app.root.current = "mousepad"
                 root.manager.transition.direction = "left"
 
         Label:
@@ -136,3 +143,31 @@ WindowManager:
             Label:
                 id: logs
                 size_hint: (1, 0.1)
+
+
+<FourthWindow>:
+    name: "mousepad"
+    logs: logs
+
+    GridLayout:
+        cols:1
+        size: root.width, root.height
+        pos: 0, 0
+
+        Label:
+            text: "MOUSEPAD"
+            size_hint: (1, 0.2)
+
+        MousePad:
+            size_hint_y: 0.8
+
+        Button:
+            text: "Home"
+            size_hint: (0.2, 0.2)
+            on_release:
+                app.root.current = "home"
+                root.manager.transition.direction = "right"
+
+        Label:
+            id: logs
+            size_hint: (1, 0.1)
