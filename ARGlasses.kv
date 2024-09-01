@@ -148,6 +148,7 @@ WindowManager:
 <FourthWindow>:
     name: "mousepad"
     logs: logs
+    touchpad: touchpad
 
     GridLayout:
         cols:1
@@ -155,11 +156,17 @@ WindowManager:
         pos: 0, 0
 
         Label:
-            text: "MOUSEPAD"
+            text: "TouchPad"
             size_hint: (1, 0.2)
-
-        MousePad:
-            size_hint_y: 0.8
+        
+        TouchPad:
+            id: touchpad
+            size_hint: 1, 1
+            canvas.before:
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                    #   source='touchpad_background.png'  # se desideri uno sfondo personalizzato
 
         Button:
             text: "Home"

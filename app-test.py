@@ -160,22 +160,21 @@ class ThirdWindow(Screen):
             print(search_query)
 
 
-class MousePad(Widget):
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.line = None  # Rappresenta la linea che disegneremo
-
-    def on_touch_down(self, touch):
-        # Quando premiamo con il mouse, iniziamo una linea
-        with self.canvas:
-            Color(1, 0, 0, 1)  # Colore rosso per la linea
-            self.line = Line(points=(touch.x, touch.y))
+class TouchPad(Widget):
 
     def on_touch_move(self, touch):
-        # Quando il mouse si muove, aggiungiamo punti alla linea
-        if self.line:
-            self.line.points += [touch.x, touch.y]
+        #   Logica per gestire i movimenti del touchpad
+        print(f'Touch moved: {touch.pos}')
+
+    def on_touch_down(self, touch):
+        #   Logica per gestire il tocco
+        print(f'Touch down: {touch.pos}')
+        return super().on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        #   Logica per gestire il rilascio del tocco
+        print(f'Touch up: {touch.pos}')
+        return super().on_touch_up(touch)
 
 
 class FourthWindow(Screen):
@@ -193,6 +192,13 @@ class FourthWindow(Screen):
         self.logs.text = log
 
         self.i += 1
+
+        def on_enter(self):
+            # Esempio di uso del touchpad
+            self.touchpad.bind(on_touch_move=self.on_touchpad_move)
+
+        def on_touchpad_move(self, instance, touch):
+            print(f'Touchpad move: {touch.pos}')
 
 
 class WindowManager(ScreenManager):
