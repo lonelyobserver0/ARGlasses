@@ -10,6 +10,7 @@ from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.properties import ObjectProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.graphics import Color, Rectangle
 from queue import Queue
 from threading import Thread
 from ble_references import Server
@@ -32,11 +33,10 @@ class MainWindow(Screen):
 
     def log(self, log):
 
-        if self.i == 10:
+        if self.i == 1:
             self.logs.text = ""
             self.i = 0
 
-        log = self.logs.text + "\n" + log
         self.logs.text = log
 
         self.i += 1
@@ -97,11 +97,10 @@ class SecondWindow(Screen):
 
     def log(self, log):
 
-        if self.i == 10:
+        if self.i == 1:
             self.logs.text = ""
             self.i = 0
 
-        log = self.logs.text + "\n" + log
         self.logs.text = log
 
         self.i += 1
@@ -134,11 +133,10 @@ class ThirdWindow(Screen):
 
     def log(self, log):
 
-        if self.i == 10:
+        if self.i == 1:
             self.logs.text = ""
             self.i = 0
 
-        log = self.logs.text + "\n" + log
         self.logs.text = log
 
         self.i += 1

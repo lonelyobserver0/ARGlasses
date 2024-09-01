@@ -3,6 +3,7 @@ WindowManager:
     SecondWindow:
     ThirdWindow:
 
+
 <MainWindow>:
 
     name: "home"
@@ -51,6 +52,7 @@ WindowManager:
 
         Label:
             id: logs
+            size_hint: (1, 0.1)
 
 
 <SecondWindow>:
@@ -91,6 +93,8 @@ WindowManager:
 
             Label:
                 id: logs
+                size_hint: (1, 0.1)
+
 
 <ThirdWindow>:
 
@@ -111,7 +115,7 @@ WindowManager:
                 size_hint: (1, 0.25)
 
             TextInput:
-                multiline: False
+                multiline: True
                 size_hint: (1, 0.25)
                 id: query
                 hint_text: "Input the resource you want to reach"
@@ -131,3 +135,4 @@ WindowManager:
 
             Label:
                 id: logs
+                size_hint: (1, 0.1)
