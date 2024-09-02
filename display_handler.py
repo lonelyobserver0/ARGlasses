@@ -65,18 +65,15 @@ def cursor_handler(dx, dy):
 def ble_receive():
 
     if ble_f:
-            
         data = Client.receive(ble)
 
         if data != "None":
 
-            if data.startswith("notes-->"):
-                data.replace("notes-->", "")
-                ble_notes(data)
+            if data[0] == "notes":
+                ble_notes(data[1])
                 
-            elif data.startswith("web-->"):
-                data.replace("web-->", "")
-                ble_web(data)
+            elif data[0] == "web":
+                ble_web(data[1])
 
             elif data[0] == "d_coordinates":
                 cursor_handler(data[1], data[2])
