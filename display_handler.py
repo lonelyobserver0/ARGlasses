@@ -45,8 +45,8 @@ def add_rectangle(bbox, outline="white", fill="black"):
     redraw_display()
 
 
-def add_text(position, text, fill="white", align="right"):
-    display_elements.append({'type': 'text', 'position': position, 'text': text, 'fill': fill, 'align': align})
+def add_text(position, text, fill="white"):
+    display_elements.append({'type': 'text', 'position': position, 'text': text, 'fill': fill})
     redraw_display()
 
 
@@ -66,20 +66,20 @@ def ble_receive():
 
     if ble_f:
             
-            data = Client.receive(ble)
+        data = Client.receive(ble)
 
-            if data != "None":
+        if data != "None":
 
-                if data.startswith("notes-->"):
-                    data.replace("notes-->", "")
-                    ble_notes(data)
+            if data.startswith("notes-->"):
+                data.replace("notes-->", "")
+                ble_notes(data)
                 
-                elif data.startswith("web-->"):
-                    data.replace("web-->", "")
-                    ble_web(data)
+            elif data.startswith("web-->"):
+                data.replace("web-->", "")
+                ble_web(data)
 
-                elif data[0] == "d_coordinates":
-                    cursor_handler(data[1], data[2])
+            elif data[0] == "d_coordinates":
+                cursor_handler(data[1], data[2])
 
 
 def ble_notes(data):
@@ -96,26 +96,33 @@ def ble_web(data):
 
 def initializing():
 
+    global display_elements
+
     add_rectangle(device.bounding_box, outline="white", fill="black")
-    add_text((0, 0), "YoRHa", fill="white", align="center")
-    add_text((0, 10), "For the glory\nof Mankind", fill="white", align="center")
-    sleep(5)
+    add_text((0, 0), "YoRHa", fill="white")
+    add_text((0, 10), "For the glory\nof Mankind", fill="white")
+    sleep(4)
     
     device.clear()
-    add_text((0, 20), "Initializing...", fill="white", align="right")
-    sleep(3)
+    display_elements = []
+    add_text((0, 0), "Initializing...", fill="white")
+    sleep(2)
 
-    add_text((0, 30), "Checking filesystem\nintegrity... OK", fill="white", align="right")
-    sleep(3)
+    add_text((0, 20), "Checking filesystem\nintegrity... OK", fill="white")
+    sleep(2)
 
-    add_text((0, 40), "Interlink status... OK", fill="white", align="right")
-    sleep(3)
+    device.clear()
+    display_elements = []
+    add_text((0, 0), "Interlink status... OK", fill="white")
+    sleep(2)
     
-    add_text((0, 50), "Primary function status... OK", fill="white", align="right")
-    sleep(3)
+    add_text((0, 20), "Primary function\nstatus... OK", fill="white")
+    sleep(2)
 
-    add_text((0, 60), "Connections status... OK", fill="white", align="right")
-    sleep(3)
+    device.clear()
+    display_elements = []
+    add_text((0, 0), "Connections status... OK", fill="white")
+    sleep(2)
 
 
 def clock():
@@ -125,13 +132,15 @@ def clock():
     current_sec = localtime().tm_sec
     current_time = f"{current_hour}:{current_min}"
 
-    add_text((0, 0), current_time, fill="white", align="right")
+    add_text((0, 0), current_time, fill="white")
         
 
 def main():
 
+    global display_elements
     initializing()
     device.clear()
+    display_elements = []
 
     while True:
 
@@ -140,6 +149,7 @@ def main():
 
         sleep(1)
         device.clear()
+        display_elements = []
 
 
 if __name__ == "__main__":
