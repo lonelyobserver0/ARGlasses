@@ -155,11 +155,8 @@ class ThirdWindow(Screen):
         else:
             computed_query = re.sub(r'[ ]', '+', query)
             search_query = f"https://duckduckgo.com/?q={computed_query}&ia=web"
-            #   response = requests.get(search_query)
-            #   page_source = response.text
-            self.log(computed_query)
-            self.log(search_query)
-            print(search_query)
+            response = requests.get(search_query)
+            page_source = response.text
 
 
 class TouchPad(Widget):
