@@ -120,7 +120,7 @@ class SecondWindow(Screen):
 
             if ble_flag == 1:
                 print("[ ERROR 00150 ] Bluetooth daemon not started")
-                self.log("[ ERROR 00149 ] Server already closed")
+                self.log("[ ERROR 00150 ] Bluetooth daemon not started")
 
             else:
                 Server.send(client, notes)
@@ -161,21 +161,40 @@ class ThirdWindow(Screen):
 
 
 class TouchPad(Widget):
-
+    
     def on_touch_move(self, touch):
         #   Logica per gestire i movimenti del touchpad
-        print(f'Touch moved: {touch.pos}')
+        #   print(f'{touch.pos}')
+        pass
 
     def on_touch_down(self, touch):
         #   Logica per gestire il tocco
-        print(f'Touch down: {touch.pos}')
         return super().on_touch_down(touch)
 
     def on_touch_up(self, touch):
         #   Logica per gestire il rilascio del tocco
-        print(f'Touch up: {touch.pos}')
         return super().on_touch_up(touch)
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.is_touching = False
 
+    def on_touch_down(self, touch):
+        self.is_touching = True
+        print(f'Touch down: {touch.pos}')
+        self.prev_x, self.prev_y = touch.x, touch.y
+
+    def on_touch_move(self, touch):
+        if self.is_touching:
+            dx = touch.x - self.prev_x
+            dy = touch.y - self.prev_y
+            print(dx, dy)
+            self.prev_x, self.prev_y = touch.x, touch.y
+
+    def on_touch_up(self, touch):
+        self.is_touching = False
+        print(f'Touch up: {touch.pos}')
+    """
 
 class FourthWindow(Screen):
 
@@ -193,12 +212,24 @@ class FourthWindow(Screen):
 
         self.i += 1
 
-        def on_enter(self):
-            # Esempio di uso del touchpad
+    def on_enter(self):
             self.touchpad.bind(on_touch_move=self.on_touchpad_move)
 
-        def on_touchpad_move(self, instance, touch):
-            print(f'Touchpad move: {touch.pos}')
+    def on_touchpad_move(self, instance, touch):
+        
+        x_ratio, y_ratio = 128 / self.touchpad.size[0], 64 / self.touchpad.size[1]
+        x_real, y_real = int(touch.pos[0] * x_ratio), int(64-(touch.pos[1] * y_ratio))
+
+        data = f"cursor_coordinates-->{x_real}, {y_real}"
+        print(data)
+
+        if ble_flag == 1:
+                # print("[ ERROR 00150 ] Bluetooth daemon not started")
+                self.log("[ ERROR 00150 ] Bluetooth daemon not started")
+
+        else:
+            Server.send(client, data)
+            self.log("Data was sent")
 
 
 class WindowManager(ScreenManager):
