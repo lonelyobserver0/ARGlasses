@@ -111,7 +111,8 @@ class SecondWindow(Screen):
 
     def send_notes(self):
 
-        notes = self.notes.text
+        notes = ["notes", self.notes.text]
+        print(notes)
 
         if not notes:
             pass
@@ -172,7 +173,6 @@ class TouchPad(Widget):
         if self.is_touching:
             dx = touch.x - self.prev_x
             dy = touch.y - self.prev_y
-            # print(dx, dy)
 
             data = ("d_coordinates", dx, dy)
             if ble_flag == 1:
