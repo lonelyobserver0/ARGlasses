@@ -4,10 +4,6 @@ from luma.oled.device import ssd1309
 from time import sleep, localtime
 from ble_references import Client
 
-#   scp C:\Users\gmula\Documents\GitHub\ARGlasses\display-test.py C:\Users\gmula\Documents\GitHub\ARGlasses\ble_references.py C:\Users\gmula\Documents\GitHub\ARGlasses\display_handler.py pi@raspberrypi:/home/pi/Code/ARGlasses
-
-#   cd Code/ARGlasses
-#   source /home/pi/luma-env/bin/activate
 
 serial = spi(device=0, port=0)
 device = ssd1309(serial)
@@ -49,8 +45,8 @@ def add_rectangle(bbox, outline="white", fill="black"):
     redraw_display()
 
 
-def add_text(position, text, fill="white"):
-    display_elements.append({'type': 'text', 'position': position, 'text': text, 'fill': fill})
+def add_text(position, text, fill="white", align="right"):
+    display_elements.append({'type': 'text', 'position': position, 'text': text, 'fill': fill, 'align': align})
     redraw_display()
 
 
@@ -102,23 +98,23 @@ def initializing():
 
     add_rectangle(device.bounding_box, outline="white", fill="black")
     add_text((0, 0), "YoRHa", fill="white", align="center")
-    add_text((0, 0), "For the glory\nof Mankind", fill="white", align="center")
+    add_text((0, 10), "For the glory\nof Mankind", fill="white", align="center")
     sleep(5)
     
     device.clear()
-    add_text((0, 0), "Initializing...", fill="white", align="right")
+    add_text((0, 20), "Initializing...", fill="white", align="right")
     sleep(3)
 
-    add_text((0, 10), "Checking filesystem\nintegrity... OK", fill="white", align="right")
+    add_text((0, 30), "Checking filesystem\nintegrity... OK", fill="white", align="right")
     sleep(3)
 
-    add_text((0, 20), "Interlink status... OK", fill="white", align="right")
+    add_text((0, 40), "Interlink status... OK", fill="white", align="right")
     sleep(3)
     
-    add_text((0, 30), "Primary function status... OK", fill="white", align="right")
+    add_text((0, 50), "Primary function status... OK", fill="white", align="right")
     sleep(3)
 
-    add_text((0, 30), "Connections status... OK", fill="white", align="right")
+    add_text((0, 60), "Connections status... OK", fill="white", align="right")
     sleep(3)
 
 
