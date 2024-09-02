@@ -9,11 +9,24 @@ device = ssd1309(serial)
 device_width = device.width
 device_height = device.height
 
+cursor_coordinates = (0, 0)
+cursor_radius = min(device_width, device_height) // 4
+
+
 try:
     ble = Client.connect()
     ble_f = True
 except Exception:
     ble_f = False
+
+
+def cursor_handler(dx, dy):
+        
+    with canvas as draw:
+        x = cursor_coordinates[0] + dx
+        y = cursor_coordinates[1] + dy
+        draw.ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white", fill=None)
+        cursor_coordinates = (x, y)
 
 
 def ble_receive():
@@ -31,6 +44,9 @@ def ble_receive():
                 elif data.startswith("web-->"):
                     data.replace("web-->", "")
                     ble_web(data)
+
+                elif data[0] == "d_coordinates":
+                    cursor_handler(data[1], data[2])
 
 
 def ble_notes(data):
@@ -80,7 +96,7 @@ def initializing():
 
 
 def clock():
-    device.clear()
+    
     current_hour = localtime().tm_hour
     current_min = localtime().tm_min
     current_sec = localtime().tm_sec
@@ -89,10 +105,11 @@ def clock():
     with canvas(device) as draw:
         draw.text((0, 0), current_time, fill="white", align="right")
         
-    
+
 def main():
 
     initializing()
+    device.clear()
 
     while True:
 
@@ -100,6 +117,7 @@ def main():
         clock()
 
         sleep(1)
+        device.clear()
 
 
 if __name__ == "__main__":
