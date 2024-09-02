@@ -70,9 +70,9 @@ def initializing():
     with canvas(device) as draw:
         draw.rectangle(device.bounding_box, outline="white", fill="black")
         draw.text((0, 0), "YoRHa", fill="white", align="center")
-        draw.text((0, 0), "For the glory of Mankind", fill="white", align="center")
+        draw.text((0, 0), "For the glory\nof Mankind", fill="white", align="center")
     sleep(5)
-
+    
     with canvas(device) as draw:
         device.clear()
         draw.text((0, 0), "Initializing...", fill="white", align="right")
@@ -85,7 +85,7 @@ def initializing():
     with canvas(device) as draw:
         draw.text((0, 20), "Interlink status... OK", fill="white", align="right")
     sleep(3)
-
+    
     with canvas(device) as draw:
         draw.text((0, 30), "Primary function status... OK", fill="white", align="right")
     sleep(3)
