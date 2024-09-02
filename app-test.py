@@ -144,6 +144,7 @@ class ThirdWindow(Screen):
 
         self.i += 1
 
+
     def web_search(self):
 
         query = self.query.text
@@ -161,40 +162,41 @@ class ThirdWindow(Screen):
 
 
 class TouchPad(Widget):
-    
-    def on_touch_move(self, touch):
-        #   Logica per gestire i movimenti del touchpad
-        #   print(f'{touch.pos}')
-        pass
 
-    def on_touch_down(self, touch):
-        #   Logica per gestire il tocco
-        return super().on_touch_down(touch)
-
-    def on_touch_up(self, touch):
-        #   Logica per gestire il rilascio del tocco
-        return super().on_touch_up(touch)
-    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.is_touching = False
 
-    def on_touch_down(self, touch):
-        self.is_touching = True
-        print(f'Touch down: {touch.pos}')
-        self.prev_x, self.prev_y = touch.x, touch.y
 
     def on_touch_move(self, touch):
         if self.is_touching:
             dx = touch.x - self.prev_x
             dy = touch.y - self.prev_y
-            print(dx, dy)
+            # print(dx, dy)
+
+            data = ("d_coordinates", dx, dy)
+            if ble_flag == 1:
+                print("[ ERROR 00150 ] Bluetooth daemon not started")
+
+            else:
+                Server.send(client, data)
+                print("Data was sent")
+            print(data)
+            print("---------------------------")
+
             self.prev_x, self.prev_y = touch.x, touch.y
+
+
+    def on_touch_down(self, touch):
+        self.is_touching = True
+        self.prev_x, self.prev_y = touch.x, touch.y
+        return super().on_touch_down(touch)
+
 
     def on_touch_up(self, touch):
         self.is_touching = False
-        print(f'Touch up: {touch.pos}')
-    """
+        return super().on_touch_up(touch)
+
 
 class FourthWindow(Screen):
 
@@ -212,11 +214,14 @@ class FourthWindow(Screen):
 
         self.i += 1
 
+
     def on_enter(self):
             self.touchpad.bind(on_touch_move=self.on_touchpad_move)
 
+
     def on_touchpad_move(self, instance, touch):
-        
+
+        """
         x_ratio, y_ratio = 128 / self.touchpad.size[0], 64 / self.touchpad.size[1]
         x_real, y_real = int(touch.pos[0] * x_ratio), int(64-(touch.pos[1] * y_ratio))
 
@@ -230,6 +235,9 @@ class FourthWindow(Screen):
         else:
             Server.send(client, data)
             self.log("Data was sent")
+        """
+
+        pass
 
 
 class WindowManager(ScreenManager):
