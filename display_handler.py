@@ -127,6 +127,10 @@ def clock():
     current_hour = localtime().tm_hour
     current_min = localtime().tm_min
     current_sec = localtime().tm_sec
+
+    if current_hour < 10:
+        current_hour = "0" + str(current_hour)
+
     current_time = f"{current_hour}:{current_min}"
 
     add_text((0, 0), current_time, fill="white")
