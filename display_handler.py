@@ -15,13 +15,18 @@ display_elements = []
 cursor_coordinates = (0, 0)
 cursor_radius = min(device_width, device_height) // 4
 
+ble = None
+ble_f = False
 
-try:
-    ble = Client.connect()
-    ble_f = True
 
-except Exception:
-    ble_f = False
+def ble_connect():
+    global ble, ble_f
+    try:
+        ble = Client.connect()
+        ble_f = True
+
+    except Exception:
+        ble_f = False
 
 
 def redraw_display():
@@ -38,6 +43,13 @@ def redraw_display():
 
             elif element['type'] == 'ellipse':
                 draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
+
+
+def display_clear():
+    global display_elements
+
+    device.clear()
+    display_elements = []
 
 
 def add_rectangle(bbox, outline="white", fill="black"):
@@ -93,31 +105,27 @@ def ble_web(data):
 
 def initializing():
 
-    global display_elements
-
     add_rectangle(device.bounding_box, outline="white", fill="black")
-    add_text((0, 0), "YoRHa", fill="white")
-    add_text((0, 10), "For the glory\nof Mankind", fill="white")
+    add_text(((device_width / 2) -10, (device_height / 2) -5), "YoRHa", fill="white")
+    add_text(((device_width / 2) -30, (device_height / 2) +5), "For the glory\nof Mankind", fill="white")
+    add_text(((device_width / 2) -10, (device_height / 2) +10), "of Mankind", fill="white")
     sleep(4)
     
-    device.clear()
-    display_elements = []
+    display_clear()
     add_text((0, 0), "Initializing...", fill="white")
     sleep(2)
 
     add_text((0, 20), "Checking filesystem\nintegrity... OK", fill="white")
     sleep(2)
 
-    device.clear()
-    display_elements = []
+    display_clear()
     add_text((0, 0), "Interlink status... OK", fill="white")
     sleep(2)
     
     add_text((0, 20), "Primary function\nstatus... OK", fill="white")
     sleep(2)
 
-    device.clear()
-    display_elements = []
+    display_clear()
     add_text((0, 0), "Connections status... OK", fill="white")
     sleep(2)
 
@@ -139,18 +147,22 @@ def clock():
 def main():
 
     global display_elements
+    
     initializing()
-    device.clear()
-    display_elements = []
+
+    display_clear()
 
     while True:
+
+        # In questo modo continuerà a provare a connettersi fino a quando non ci riuscirà
+        if not ble_f:
+            ble_connect()
 
         ble_receive()
         clock()
 
         sleep(1)
-        device.clear()
-        display_elements = []
+        display_clear()
 
 
 if __name__ == "__main__":
