@@ -1,65 +1,66 @@
 import cv2
-import numpy as np
+import mediapipe as mp
 import pyautogui
 
-# Carica il modello di rete neurale per la rilevazione delle mani
-net = cv2.dnn.readNetFromTensorflow('models/ssd_mobilenet_v1_coco_2017_11_17/frozen_inference_graph.pb', 'models/ssd_mobilenet_v1_coco_2017_11_17/ssd_mobilenet_v1_coco.pbtxt')
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-# Inizializza le variabili per il tracciamento del dito destro
-right_hand_x, right_hand_y = 0, 0
-right_hand_moved = False
-
-# Inizializza le variabili per il click sinistro del mouse
-left_hand_closed = False
-
-# Apri la videocamera
 cap = cv2.VideoCapture(0)
 
+left_hand_open = False
+left_hand_closed = False
+
+click_counter = 0
+
 while True:
-    # Leggi un frame dalla videocamera
-    ret, frame = cap.read()
+    success, image = cap.read()
+    if not success:
+        break
 
-    # Ridimensiona il frame e convertelo in bianco e nero
-    frame = cv2.resize(frame, (300, 300))
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    image = cv2.flip(image, 1)
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Esegui la rilevazione delle mani sul frame
-    blob = cv2.dnn.blobFromImage(gray, 1.0 / 255, (300, 300), (0, 0, 0), swapRB=True, crop=False)
-    net.setInput(blob)
-    output = net.forward()
+    # Rileva le mani nell'immagine
+    results = hands.process(image_rgb)
+    h, w, _ = image.shape  # Altezza e larghezza dell'immagine
 
-    # Trova la posizione del dito destro
-    confidence = output[0, 8, :, 2]
-    idx = np.argmax(confidence)
-    if confidence[idx] > 0.5:
-        x, y = output[0, 8, idx, 3:5] * np.array([frame.shape[1], frame.shape[0]])
-        right_hand_x, right_hand_y = int(x), int(y)
-        right_hand_moved = True
-    else:
-        right_hand_moved = False
+    if results.multi_hand_landmarks:
+        for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
+            # Determina se è la mano destra o sinistra
+            label = handedness.classification[0].label
 
-    # Trova la posizione della mano sinistra
-    confidence = output[0, 12, :, 2]
-    idx = np.argmax(confidence)
-    if confidence[idx] > 0.5:
-        x, y = output[0, 12, idx, 3:5] * np.array([frame.shape[1], frame.shape[0]])
-        left_hand_closed = True
-    else:
-        left_hand_closed = False
+            # Coordinate della punta dell'indice
+            index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+            x = int(index_finger_tip.x * w)
+            y = int(index_finger_tip.y * h)
 
-    # Sposta il cursore del mouse e simula un click sinistro
-    if right_hand_moved:
-        pyautogui.moveTo(right_hand_x, right_hand_y)
-    if left_hand_closed:
-        pyautogui.click(button='left')
+            if label == 'Right':
+                pyautogui.moveTo(x, y)
+            elif label == 'Left':
+                # Calcola la distanza tra la punta del pollice e la punta del mignolo per determinare apertura/chiusura
+                thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
+                pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
+                distance = ((thumb_tip.x - pinky_tip.x) ** 2 + (thumb_tip.y - pinky_tip.y) ** 2) ** 0.5
+                
+                print("Distance", distance)
 
-    # Visualizza il frame con i risultati
-    cv2.imshow('Hand Gesture Control', frame)
+                if distance < 0.1:
+                    left_hand_closed = True
+                else:
+                    if left_hand_closed:  # Se la mano era chiusa e ora è aperta
+                        # pyautogui.click()
+                        click_counter += 1
+                        print(click_counter, "Click")
+                        left_hand_closed = False
 
-    # Interrompi il ciclo con 'q'
+            mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+    cv2.imshow("Hand Tracking", image)
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Libera le risorse
 cap.release()
 cv2.destroyAllWindows()
+hands.close()
