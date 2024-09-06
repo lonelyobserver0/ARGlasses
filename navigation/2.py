@@ -13,6 +13,8 @@ left_hand_closed = False
 
 click_counter = 0
 
+x1_ratio, y1_ratio = 2560 / 640, 1440 / 480
+
 while True:
     success, image = cap.read()
     if not success:
@@ -36,7 +38,8 @@ while True:
             y = int(index_finger_tip.y * h)
 
             if label == 'Right':
-                pyautogui.moveTo(x, y)
+                # pyautogui.moveTo(x, y)
+                pyautogui.moveTo(int(x * x1_ratio), int(y * y1_ratio))
             elif label == 'Left':
                 # Calcola la distanza tra la punta del pollice e la punta del mignolo per determinare apertura/chiusura
                 thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
@@ -48,7 +51,7 @@ while True:
                 if distance < 0.1:
                     left_hand_closed = True
                 else:
-                    if left_hand_closed:  # Se la mano era chiusa e ora è aperta
+                    if left_hand_closed:
                         # pyautogui.click()
                         click_counter += 1
                         print(click_counter, "Click")

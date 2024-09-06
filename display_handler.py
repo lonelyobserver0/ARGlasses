@@ -3,7 +3,11 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1309
 from time import sleep, localtime
 from ble_references import Client
+import sys
 
+# python file_name.py argument
+cam_f = sys.argv[1] # First word after file_name.py (in this case "argument")
+print(cam_f)
 
 serial = spi(device=0, port=0)
 device = ssd1309(serial)
@@ -28,7 +32,7 @@ def ble_connect():
     except Exception:
         ble_f = False
 
-
+#region Display Handling
 def redraw_display():
 
     with canvas(device) as draw:
@@ -66,29 +70,13 @@ def add_ellipse(bbox, outline="white", fill="black"):
     display_elements.append({'type': 'ellipse', 'bbox': bbox, 'outline': outline, 'fill': fill})
     redraw_display()
 
+#endregion
 
 def cursor_handler(dx, dy):
     x = cursor_coordinates[0] + dx
     y = cursor_coordinates[1] + dy
     add_ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white", fill=None)
     cursor_coordinates = (x, y)
-
-
-def ble_receive():
-
-    if ble_f:
-        data = Client.receive(ble)
-
-        if data != "None":
-
-            if data[0] == "notes":
-                ble_notes(data[1])
-                
-            elif data[0] == "web":
-                ble_web(data[1])
-
-            elif data[0] == "d_coordinates":
-                cursor_handler(data[1], data[2])
 
 
 def ble_notes(data):
@@ -144,9 +132,23 @@ def clock():
     add_text((0, 0), current_time, fill="white")
         
 
-def main():
+def ble_receive():
 
-    global display_elements
+    data = Client.receive(ble)
+
+    if data != "None":
+
+        if data[0] == "notes":
+            ble_notes(data[1])
+                
+        elif data[0] == "web":
+            ble_web(data[1])
+
+        elif data[0] == "d_coordinates":
+            cursor_handler(data[1], data[2])
+
+
+def main():
     
     initializing()
 
@@ -154,11 +156,11 @@ def main():
 
     while True:
 
-        # In questo modo continuerà a provare a connettersi fino a quando non ci riuscirà
         if not ble_f:
             ble_connect()
-
-        ble_receive()
+        else:
+            ble_receive()
+            
         clock()
 
         sleep(1)
