@@ -25,7 +25,8 @@ while True:
 
     # Rileva le mani nell'immagine
     results = hands.process(image_rgb)
-    h, w, _ = image.shape  # Altezza e larghezza dell'immagine
+    # Altezza e larghezza dell'immagine (sarebbero le misure da usare per calcolare in modo dinamico x1_ratio e y1_ratio)
+    h, w, _ = image.shape
 
     if results.multi_hand_landmarks:
         for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
@@ -52,7 +53,7 @@ while True:
                     left_hand_closed = True
                 else:
                     if left_hand_closed:
-                        # pyautogui.click()
+                        pyautogui.click()
                         click_counter += 1
                         print(click_counter, "Click")
                         left_hand_closed = False
