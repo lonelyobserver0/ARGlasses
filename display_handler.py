@@ -189,13 +189,9 @@ def clock():
     add_text((0, 0), current_time, fill="white")
         
 
-def death_sequence():
+def death_button():
+    add_text((5, 5), "CTB", fill="white", id="Off button")
     
-    add_text((5, 5), "CTB", fill="white")
-    
-    global death_flag
-    death_flag = True
-
 
 def ble_receive():
 
@@ -215,27 +211,28 @@ def ble_receive():
 
 def main():
     
+    if cam_f == "cam":
+        # Modalità con camera
+        print("Avviato con camera")
+        
+    if bl_f == "bl":
+        # Modalità con bluetooth
+        print("Avviato con bluetooth")
+        
+    print("-->Avvio senza modalità di input<--")
+    
     initializing()
-
     display_clear()
 
     while True:
 
         if bl_f == "bl":
-            # Modalità con bluetooth
             if not ble_f:
                 ble_connect()
             else:
                 ble_receive()
-            print("Avviato con bluetooth")
         
-        if cam_f == "cam":
-            # Modalità con camera
-            print("Avviato con camera")
-            pass
-        
-        print("-->Avvio senza modalità di input<--")
-            
+        death_button()
         clock()
 
         sleep(1)
