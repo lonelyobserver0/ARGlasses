@@ -6,9 +6,13 @@ from time import sleep, localtime
 from ble_references import Client
 import sys
 
-# python file_name.py argument1 argument2
-cam_f = sys.argv[1] # First word after file_name.py (in this case "argument1")
-bl_f = sys.argv[2]  # Second word after file_name.py (in this case "argument2")
+
+bl_f, cam_f = False, False  # Inizializzando le flag degli argomenti
+for cli_argument in sys.argv:
+    if cli_argument == "-bl":
+        bl_f = True
+    elif cli_argument == "-cam":
+        cam_f = True
 
 serial = spi(device=0, port=0)
 device = ssd1309(serial)
@@ -35,7 +39,7 @@ def ble_connect():
     except Exception:
         ble_f = False
 
-#region Display Handling
+#region Display
 def redraw_display():
 
     with canvas(device) as draw:
@@ -75,7 +79,7 @@ def add_ellipse(bbox, outline="white", fill="black", id=None):
 
 #endregion
 
-
+#region Cursor
 def is_within_element(element, x_check, y_check):
     element_type = element['type']
     
@@ -134,7 +138,9 @@ def ble_cursor_handler(dx, dy):
     y = cursor_coordinates[1] + dy
     add_ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white", fill=None)
     cursor_coordinates = (x, y)
+    return x, y
 
+#endregion
 
 def ble_notes(data):
         
@@ -173,6 +179,8 @@ def initializing():
     display_clear()
     add_text((0, 0), "Connections status... OK", fill="white")
     sleep(2)
+    
+    display_clear()
 
 
 def clock():
@@ -201,46 +209,100 @@ def ble_receive():
 
         if data[0] == "notes":
             ble_notes(data[1])
+            return ("notes")
                 
         elif data[0] == "web":
             ble_web(data[1])
+            return ("web")
 
         elif data[0] == "d_coordinates":
-            ble_cursor_handler(data[1], data[2])
+            x, y = ble_cursor_handler(data[1], data[2])
+            click = data[3]
+            return ("coor", x, y, click)
 
 
+def GUI(x, y, click):
+    death_button()
+    clock()
+
+    cursor_handler(x, y, click)
+    sleep(1)
+    display_clear()
+
+#region Main
 def main():
     
-    if cam_f == "cam":
+    if cam_f:
         # Modalità con camera
         print("Avviato con camera")
         
-    if bl_f == "bl":
+    if bl_f:
         # Modalità con bluetooth
         print("Avviato con bluetooth")
         
     print("-->Avvio senza modalità di input<--")
     
     initializing()
-    display_clear()
-
+    
+    """
     while True:
-
-        if bl_f == "bl":
+        
+        if cam_f:
+            x_cursor, y_cursor = None, None # Le coordinate calcolate dal file 2.py --> Praticamente gli elementi della queue del multiprocessing
+            click = None #Flag dal file 2.py                                        --> Praticamente gli elementi della queue del multiprocessing
+        
+        if bl_f:
             if not ble_f:
                 ble_connect()
+                
             else:
-                ble_receive()
+                ble_result = ble_receive()
+                
+                if ble_result[0] == "coor":
+                    x_cursor, y_cursor = ble_result[1], ble_result[2]
+                    click = ble_result[3]
         
         death_button()
         clock()
 
+        cursor_handler(x_cursor, y_cursor, click)
         sleep(1)
         display_clear()
         
         if death_flag:
             break
+    """
+    
+    x_cursor, y_cursor = None, None
+    click = None
+    
+    while cam_f:
 
+        x_cursor, y_cursor = None, None # Le coordinate calcolate dal file 2.py --> Praticamente gli elementi della queue del multiprocessing
+        click = None #Flag dal file 2.py                                        --> Praticamente gli elementi della queue del multiprocessing
+        
+        GUI(x_cursor, y_cursor, click)
+        
+        if death_flag:
+            break
+    
+    while bl_f:
+        
+        if not ble_f:
+            ble_connect()
+                
+        else:
+            ble_result = ble_receive()
+                
+            if ble_result[0] == "coor":
+                x_cursor, y_cursor = ble_result[1], ble_result[2]
+                click = ble_result[3]
+        
+        GUI(x_cursor, y_cursor, click)
+        
+        if death_flag:
+            break
+#endregion
 
 if __name__ == "__main__":
     main()
