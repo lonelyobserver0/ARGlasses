@@ -5,6 +5,7 @@ from PIL import ImageFont
 from time import sleep, localtime
 from ble_references import Client
 import sys
+import multiprocessing
 
 
 bl_f, cam_f = False, False  # Inizializzando le flag degli argomenti
@@ -39,7 +40,8 @@ def ble_connect():
     except Exception:
         ble_f = False
 
-#region Display
+
+# region Display
 def redraw_display():
 
     with canvas(device) as draw:
@@ -53,6 +55,9 @@ def redraw_display():
                 draw.text(element['position'], element['text'], fill=element['fill'])
 
             elif element['type'] == 'ellipse':
+                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
+
+            elif element['type'] == 'circle':
                 draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
 
 
@@ -77,9 +82,15 @@ def add_ellipse(bbox, outline="white", fill="black", id=None):
     display_elements.append({'type': 'ellipse', 'bbox': bbox, 'outline': outline, 'fill': fill, 'id': id})
     redraw_display()
 
-#endregion
 
-#region Cursor
+def add_circle(bbox, outline="white", fill="black", id=None):   # bbox = (x_centro, y_centro, radius)
+    display_elements.append({'type': 'ellipse', 'bbox': bbox, 'outline': outline, 'fill': fill, 'id': id})
+    redraw_display()
+
+# endregion
+
+
+# region Cursor
 def is_within_element(element, x_check, y_check):
     element_type = element['type']
     
@@ -99,7 +110,7 @@ def is_within_element(element, x_check, y_check):
             return True
     
     elif element_type == 'circle':
-        cx, cy, radius = element['center'], element['radius']
+        cx, cy, radius = element['bbox']
         # Calcola la distanza del punto dal centro del cerchio
         if (x_check - cx) ** 2 + (y_check - cy) ** 2 <= radius ** 2:
             return True
@@ -134,13 +145,15 @@ def cursor_handler(x, y, clicked):
 
 
 def ble_cursor_handler(dx, dy):
+    global cursor_coordinates
     x = cursor_coordinates[0] + dx
     y = cursor_coordinates[1] + dy
-    add_ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white", fill=None)
+    add_ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white")
     cursor_coordinates = (x, y)
     return x, y
 
-#endregion
+# endregion
+
 
 def ble_notes(data):
         
@@ -229,27 +242,33 @@ def GUI(x, y, click):
     sleep(1)
     display_clear()
 
-#region Main
-def main():
+# region Main
+
+
+def main(queue):
     
     if cam_f:
         # Modalità con camera
         print("Avviato con camera")
         
-    if bl_f:
+    elif bl_f:
         # Modalità con bluetooth
         print("Avviato con bluetooth")
+
+    else:
+        print("Expected at least 1 argument, got 0")
         
     print("-->Avvio senza modalità di input<--")
     
     initializing()
-    
+
+    # region Simulacri
     """
     while True:
         
         if cam_f:
-            x_cursor, y_cursor = None, None # Le coordinate calcolate dal file 2.py --> Praticamente gli elementi della queue del multiprocessing
-            click = None #Flag dal file 2.py                                        --> Praticamente gli elementi della queue del multiprocessing
+            x_cursor, y_cursor = None, None # Le coordinate calcolate dal file cursor_handler.py --> Praticamente gli elementi della queue del multiprocessing
+            click = None #Flag dal file cursor_handler.py                                        --> Praticamente gli elementi della queue del multiprocessing
         
         if bl_f:
             if not ble_f:
@@ -272,15 +291,15 @@ def main():
         if death_flag:
             break
     """
-    
+    # endregion
+
     x_cursor, y_cursor = None, None
     click = None
     
     while cam_f:
-
-        x_cursor, y_cursor = None, None # Le coordinate calcolate dal file 2.py --> Praticamente gli elementi della queue del multiprocessing
-        click = None #Flag dal file 2.py                                        --> Praticamente gli elementi della queue del multiprocessing
-        
+        data = queue.get()
+        # Le coordinate calcolate dal file cursor_handler.py --> Praticamente gli elementi della queue del multiprocessing
+        x_cursor, y_cursor, click = data
         GUI(x_cursor, y_cursor, click)
         
         if death_flag:
@@ -302,7 +321,11 @@ def main():
         
         if death_flag:
             break
-#endregion
+# endregion
+
 
 if __name__ == "__main__":
-    main()
+    queue = multiprocessing.Queue()
+    p2 = multiprocessing.Process(target=main, args=(queue,))
+    p2.start()
+    p2.join()
