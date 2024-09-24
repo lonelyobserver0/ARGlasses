@@ -298,7 +298,8 @@ def main(queue):
     
     while cam_f:
         data = queue.get()
-        # Le coordinate calcolate dal file cursor_handler.py --> Praticamente gli elementi della queue del multiprocessing
+        # Le coordinate calcolate dal file cursor_handler.py
+        # --> Praticamente gli elementi della queue del multiprocessing
         x_cursor, y_cursor, click = data
         GUI(x_cursor, y_cursor, click)
         
