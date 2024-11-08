@@ -50,16 +50,16 @@ def redraw_display():
         for element in display_elements:
             
             if element['type'] == 'rectangle':
-                draw.rectangle(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
+                draw.rectangle(element['bbox'], outline=element['outline'], fill=element['fill'])
 
             elif element['type'] == 'text':
                 draw.text(element['position'], element['text'], fill=element['fill'], font=font)
 
             elif element['type'] == 'ellipse':
-                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
+                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
 
             elif element['type'] == 'circle':
-                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
+                draw.circle(element['bbox'], outline=element['outline'], fill=element['fill'])
 
 
 def display_clear():
