@@ -7,6 +7,7 @@ from ble_references import Client
 import sys
 import multiprocessing
 
+font = ImageFont.truetype("NixieOne.ttf", 1)
 
 bl_f, cam_f = False, False  # Inizializzando le flag degli argomenti
 for cli_argument in sys.argv:
@@ -49,16 +50,16 @@ def redraw_display():
         for element in display_elements:
             
             if element['type'] == 'rectangle':
-                draw.rectangle(element['bbox'], outline=element['outline'], fill=element['fill'])
+                draw.rectangle(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
 
             elif element['type'] == 'text':
-                draw.text(element['position'], element['text'], fill=element['fill'])
+                draw.text(element['position'], element['text'], fill=element['fill'], font=font)
 
             elif element['type'] == 'ellipse':
-                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
+                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
 
             elif element['type'] == 'circle':
-                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
+                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'], font=font)
 
 
 def display_clear():
