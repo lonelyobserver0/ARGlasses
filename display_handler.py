@@ -1,333 +1,96 @@
-from luma.core.interface.serial import spi
-from luma.core.render import canvas
-from luma.oled.device import ssd1309
-from PIL import ImageFont
-from time import sleep, localtime
-from ble_references import Client
-import sys
-import multiprocessing
+from p5 import *
+from time import time, sleep
+from GUI.base import *
+from GUI.clock import draw_clock
+from GUI.BLE import ble_input
+from GUI.cam import cam_input
 
-font = ImageFont.truetype("NixieOne.ttf", 1)
+# Fallback font loader
+def get_default_font():
+    return create_font("Arial", 32) or create_font("sans-serif", 32)
 
-bl_f, cam_f = False, False  # Inizializzando le flag degli argomenti
-for cli_argument in sys.argv:
-    if cli_argument == "-bl":
-        bl_f = True
-    elif cli_argument == "-cam":
-        cam_f = True
+font = get_default_font()
 
-serial = spi(device=0, port=0)
-device = ssd1309(serial)
-device_width = device.width
-device_height = device.height
+def draw_text(text, x, y, size=32, color=(255, 255, 255), anchor_x=LEFT, anchor_y=TOP, font=font, id=None):
+    text_font(font)
+    text_size(size)
+    fill(*color)
+    text_align(anchor_x, anchor_y)
+    text(text, (x, y), id=id)
 
-display_elements = []
-
-cursor_coordinates = (0, 0)
-cursor_radius = min(device_width, device_height) // 4
-
-death_flag = False
-
-ble = None
-ble_f = False
-
-
-def ble_connect():
-    global ble, ble_f
-    try:
-        ble = Client.connect()
-        ble_f = True
-
-    except Exception:
-        ble_f = False
-
-
-# region Display
-def redraw_display():
-
-    with canvas(device) as draw:
-
-        for element in display_elements:
-            
-            if element['type'] == 'rectangle':
-                draw.rectangle(element['bbox'], outline=element['outline'], fill=element['fill'])
-
-            elif element['type'] == 'text':
-                draw.text(element['position'], element['text'], fill=element['fill'], font=font)
-
-            elif element['type'] == 'ellipse':
-                draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
-
-            elif element['type'] == 'circle':
-                draw.circle(element['bbox'], outline=element['outline'], fill=element['fill'])
-
-
-def display_clear():
-    global display_elements
-
-    device.clear()
-    display_elements = []
-
-
-def add_rectangle(bbox, outline="white", fill="black", id=None):
-    display_elements.append({'type': 'rectangle', 'bbox': bbox, 'outline': outline, 'fill': fill, 'id': id})
-    redraw_display()
-
-
-def add_text(position, text, fill="white", id=None):
-    display_elements.append({'type': 'text', 'position': position, 'text': text, 'fill': fill, 'id': id})
-    redraw_display()
-
-
-def add_ellipse(bbox, outline="white", fill="black", id=None):
-    display_elements.append({'type': 'ellipse', 'bbox': bbox, 'outline': outline, 'fill': fill, 'id': id})
-    redraw_display()
-
-
-def add_circle(bbox, outline="white", fill="black", id=None):   # bbox = (x_centro, y_centro, radius)
-    display_elements.append({'type': 'ellipse', 'bbox': bbox, 'outline': outline, 'fill': fill, 'id': id})
-    redraw_display()
-
-# endregion
-
-
-# region Cursor
-def is_within_element(element, x_check, y_check):
-    element_type = element['type']
-    
-    if element_type == 'text':
-        x, y = element['position']
-        text = element['text']
-        font = element.get('font', ImageFont.load_default())
-        text_width, text_height = font.getsize(text)
-        # Verifica se le coordinate sono all'interno del testo
-        if x <= x_check <= x + text_width and y <= y_check <= y + text_height:
-            return True
-    
-    elif element_type == 'rectangle':
-        x1, y1, x2, y2 = element['bbox']
-        # Verifica se le coordinate sono all'interno del rettangolo
-        if x1 <= x_check <= x2 and y1 <= y_check <= y2:
-            return True
-    
-    elif element_type == 'circle':
-        cx, cy, radius = element['bbox']
-        # Calcola la distanza del punto dal centro del cerchio
-        if (x_check - cx) ** 2 + (y_check - cy) ** 2 <= radius ** 2:
-            return True
-    
-    elif element_type == 'ellipse':
-        # Due coppie di coordinate (bounding box)
-        x1, y1, x2, y2 = element['bbox']
-        # Calcola il centro dell'ellisse
-        cx = (x1 + x2) / 2
-        cy = (y1 + y2) / 2
-        # Calcola i semiassi
-        a = abs(x2 - x1) / 2
-        b = abs(y2 - y1) / 2
-        # Verifica se il punto è all'interno dell'ellisse usando l'equazione dell'ellisse
-        if ((x_check - cx) ** 2) / (a ** 2) + ((y_check - cy) ** 2) / (b ** 2) <= 1:
-            return True
-    
-    return False
-
-
-def cursor_handler(x, y, clicked):
-    
-    for element in display_elements:
-        fs = is_within_element(element, x, y)
-        if fs:
-            # Do something with the focus trigger
-            if clicked:
-                if element['id'] == "Off button":
-                    global death_flag
-                    death_flag = True
-                # elif tutti gli altri bottoni ...
-
-
-def ble_cursor_handler(dx, dy):
-    global cursor_coordinates
-    x = cursor_coordinates[0] + dx
-    y = cursor_coordinates[1] + dy
-    add_ellipse((x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius), outline="white")
-    cursor_coordinates = (x, y)
-    return x, y
-
-# endregion
-
-
-def ble_notes(data):
-        
-    add_rectangle((device_width - 50, 10, device_width - 100, 60), outline="white", fill="black")
-    add_text((75, 35), data, fill="white")
-
-
-def ble_web(data):
-        
-    add_rectangle((device_width - 50, 10, device_width - 100, 60), outline="white", fill="black")
-    add_text((75, 35), data, fill="white")
-
-
-def initializing():
-
-    add_rectangle(device.bounding_box, outline="white", fill="black")
-    add_text(((device_width / 2) -10, (device_height / 2) -5), "YoRHa", fill="white")
-    add_text(((device_width / 2) -30, (device_height / 2) +5), "For the glory\nof Mankind", fill="white")
-    add_text(((device_width / 2) -10, (device_height / 2) +10), "of Mankind", fill="white")
-    sleep(4)
-    
-    display_clear()
-    add_text((0, 0), "Initializing...", fill="white")
-    sleep(2)
-
-    add_text((0, 20), "Checking filesystem\nintegrity... OK", fill="white")
-    sleep(2)
-
-    display_clear()
-    add_text((0, 0), "Interlink status... OK", fill="white")
-    sleep(2)
-    
-    add_text((0, 20), "Primary function\nstatus... OK", fill="white")
-    sleep(2)
-
-    display_clear()
-    add_text((0, 0), "Connections status... OK", fill="white")
-    sleep(2)
-    
-    display_clear()
-
-
-def clock():
-    
-    current_hour = localtime().tm_hour
-    current_min = localtime().tm_min
-    current_sec = localtime().tm_sec
-
-    if current_hour < 10:
-        current_hour = "0" + str(current_hour)
-
-    current_time = f"{current_hour}:{current_min}"
-
-    add_text((0, 0), current_time, fill="white")
-        
+def draw_button(x, y, w, h, label, id_prefix="button"):
+    add_rectangle(x, y, w, h, color=(255, 0, 0), id=f"{id_prefix} rect")
+    draw_text(label, x + w / 2, y + h / 2, size=20, color=(255, 255, 255), anchor_x=CENTER, anchor_y=CENTER, id=f"{id_prefix} text")
 
 def death_button():
-    add_text((5, 5), "CTB", fill="white", id="Off button")
-    
+    draw_button(10, 10, 80, 40, "OFF", id_prefix="Off button")
 
-def ble_receive():
+def clock():
+    draw_clock(250, 250, radius=100)
 
-    data = Client.receive(ble)
+def update_gui_state(x_cursor, y_cursor, click):
+    elements_to_remove = [
+        "Off button rect",
+        "Off button text",
+        "clock",
+        "status",
+        "cursor",
+        "click_label"
+    ]
+    for eid in elements_to_remove:
+        display_remove(eid)
 
-    if data != "None":
-
-        if data[0] == "notes":
-            ble_notes(data[1])
-            return ("notes")
-                
-        elif data[0] == "web":
-            ble_web(data[1])
-            return ("web")
-
-        elif data[0] == "d_coordinates":
-            x, y = ble_cursor_handler(data[1], data[2])
-            click = data[3]
-            return ("coor", x, y, click)
-
-
-def GUI(x, y, click):
+def render_gui(x_cursor=None, y_cursor=None, click=False):
     death_button()
     clock()
+    draw_text("Sistema attivo", 100, 20, size=24, color=(255, 255, 255), id="status")
+    if x_cursor is not None and y_cursor is not None:
+        add_ellipse(x_cursor, y_cursor, 20, 20, color=(0, 255, 0), id="cursor")
+        if click:
+            draw_text("Click!", x_cursor + 10, y_cursor, size=16, color=(255, 255, 0), id="click_label")
 
-    cursor_handler(x, y, click)
-    sleep(1)
-    display_clear()
+def handle_click(x, y):
+    # Coordinate del bottone OFF
+    if 10 <= x <= 90 and 10 <= y <= 50:
+        print("Shutting down...")
+        exit(0)
 
-# region Main
+def GUI(x_cursor=None, y_cursor=None, click=False):
+    update_gui_state(x_cursor, y_cursor, click)
+    render_gui(x_cursor, y_cursor, click)
+    if click and x_cursor is not None and y_cursor is not None:
+        handle_click(x_cursor, y_cursor)
 
-
-def main(queue):
-    
-    if cam_f:
-        # Modalità con camera
-        print("Avviato con camera")
-        
-    elif bl_f:
-        # Modalità con bluetooth
-        print("Avviato con bluetooth")
-
-    else:
-        print("Expected at least 1 argument, got 0")
-        
-    print("-->Avvio senza modalità di input<--")
-    
-    initializing()
-
-    # region Simulacri
-    """
+def main_cam():
+    print("Running with cam input")
     while True:
-        
-        if cam_f:
-            x_cursor, y_cursor = None, None # Le coordinate calcolate dal file cursor_handler.py --> Praticamente gli elementi della queue del multiprocessing
-            click = None #Flag dal file cursor_handler.py                                        --> Praticamente gli elementi della queue del multiprocessing
-        
-        if bl_f:
-            if not ble_f:
-                ble_connect()
-                
-            else:
-                ble_result = ble_receive()
-                
-                if ble_result[0] == "coor":
-                    x_cursor, y_cursor = ble_result[1], ble_result[2]
-                    click = ble_result[3]
-        
-        death_button()
-        clock()
+        x, y, click = cam_input()
+        GUI(x, y, click)
+        sleep(1 / 30)  # ~30 FPS
 
-        cursor_handler(x_cursor, y_cursor, click)
-        sleep(1)
-        display_clear()
-        
-        if death_flag:
-            break
-    """
-    # endregion
+def main_ble():
+    print("Running with BLE input")
+    while True:
+        x, y, click = ble_input()
+        GUI(x, y, click)
+        sleep(1 / 30)  # ~30 FPS
 
-    x_cursor, y_cursor = None, None
-    click = None
-    
-    while cam_f:
-        data = queue.get()
-        # Le coordinate calcolate dal file cursor_handler.py
-        # --> Praticamente gli elementi della queue del multiprocessing
-        x_cursor, y_cursor, click = data
-        GUI(x_cursor, y_cursor, click)
-        
-        if death_flag:
-            break
-    
-    while bl_f:
-        
-        if not ble_f:
-            ble_connect()
-                
-        else:
-            ble_result = ble_receive()
-                
-            if ble_result[0] == "coor":
-                x_cursor, y_cursor = ble_result[1], ble_result[2]
-                click = ble_result[3]
-        
-        GUI(x_cursor, y_cursor, click)
-        
-        if death_flag:
-            break
-# endregion
+def main():
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python3 run.py [cam|ble|test]")
+        return
+    mode = sys.argv[1]
+    if mode == "cam":
+        main_cam()
+    elif mode == "ble":
+        main_ble()
+    elif mode == "test":
+        while True:
+            GUI(100, 100, click=True)
+            sleep(1 / 2)
+    else:
+        print("Unknown mode")
 
-
-if __name__ == "__main__":
-    queue = multiprocessing.Queue()
-    p2 = multiprocessing.Process(target=main, args=(queue,))
-    p2.start()
-    p2.join()
+if __name__ == '__main__':
+    main()
