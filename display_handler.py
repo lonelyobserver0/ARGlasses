@@ -3,10 +3,11 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1309
 from PIL import ImageFont
 from time import sleep, localtime
-from ble_references import Client # Assuming this module is available and functional
+from ble_references import Client # Import the Client class from your updated module
 import sys
 import multiprocessing
 import argparse # For better command-line argument parsing
+import socket # Required for socket type hinting
 
 # --- Configuration ---
 # Font for display text. Ensure 'NixieOne.ttf' is in the same directory or provide a full path.
@@ -18,6 +19,7 @@ except IOError:
 
 # --- Display Setup ---
 # Initialize SPI interface and SSD1309 OLED device
+# These values (device=0, port=0) are common for Raspberry Pi, adjust if needed.
 serial = spi(device=0, port=0)
 device = ssd1309(serial)
 device_width = device.width
@@ -30,28 +32,36 @@ display_elements: list[dict] = []
 cursor_coordinates: tuple[int, int] = (device_width // 2, device_height // 2) # Start cursor in center
 cursor_radius: int = min(device_width, device_height) // 8 # Increased radius for better visibility
 
-# Global flags
+# Global flags and BLE client instance
 death_flag: bool = False
-ble_client = None
-ble_connected_flag: bool = False
+ble_client: socket.socket | None = None # This will hold the connected Bluetooth client socket
+ble_connected_flag: bool = False # Flag to track BLE connection status
 
 # --- BLE Functions ---
 def ble_connect() -> None:
-    """Attempts to connect to the BLE client."""
+    """
+    Attempts to connect to the BLE client using the Client class from ble_references.
+    Updates the global ble_client and ble_connected_flag.
+    """
     global ble_client, ble_connected_flag
     try:
         print("Attempting to connect to BLE client...")
-        ble_client = Client.connect()
-        ble_connected_flag = True
-        print("BLE connected successfully.")
+        # Client.connect now returns the socket or None
+        connected_socket = Client.connect()
+        if connected_socket:
+            ble_client = connected_socket
+            ble_connected_flag = True
+            print("BLE connected successfully.")
+        else:
+            ble_connected_flag = False
+            print("BLE connection failed: Client.connect returned None.")
     except Exception as e:
         ble_connected_flag = False
-        print(f"BLE connection failed: {e}")
-        # Optionally, clear BLE related display messages or show error
+        print(f"BLE connection failed (exception): {e}")
 
 def ble_notes(data: str) -> None:
     """Displays notes received via BLE on the screen."""
-    # Define a clear area for notes display
+    # Define a clear area for notes display at the bottom of the screen
     notes_bbox = (5, device_height - 20, device_width - 5, device_height - 5)
     add_rectangle(notes_bbox, outline="white", fill="black", id="notes_display")
     add_text((notes_bbox[0] + 2, notes_bbox[1] + 2), data, fill="white", id="notes_text")
@@ -59,35 +69,68 @@ def ble_notes(data: str) -> None:
 
 def ble_web(data: str) -> None:
     """Displays web data received via BLE on the screen."""
-    # Define a clear area for web data display
+    # Define a clear area for web data display, above notes
     web_bbox = (5, device_height - 40, device_width - 5, device_height - 25)
     add_rectangle(web_bbox, outline="white", fill="black", id="web_display")
     add_text((web_bbox[0] + 2, web_bbox[1] + 2), data, fill="white", id="web_text")
     print(f"BLE Web Data: {data}")
 
 def ble_receive():
-    """Receives data from the BLE client and processes it."""
+    """
+    Receives data from the BLE client using the Client class from ble_references.
+    Processes received data and returns relevant information for GUI updates.
+    """
+    global ble_connected_flag # Need to modify this if client disconnects
+
     if not ble_client:
+        print("BLE client not connected. Cannot receive data.")
+        ble_connected_flag = False # Ensure flag is false if client is None
         return None
 
     try:
-        data = Client.receive(ble_client)
-        if data != "None" and data is not None:
-            print(f"Received BLE data: {data}")
-            if data[0] == "notes":
-                ble_notes(data[1])
-                return ("notes",)
-            elif data[0] == "web":
-                ble_web(data[1])
-                return ("web",)
-            elif data[0] == "d_coordinates":
-                dx, dy, click = data[1], data[2], data[3]
-                x, y = ble_cursor_handler(dx, dy)
-                return ("coor", x, y, click)
-        return None
+        # Client.receive now returns Optional[str]
+        received_data_str = Client.receive(ble_client)
+        
+        if received_data_str is None:
+            # This indicates disconnection or no data
+            print("BLE client received no data or disconnected.")
+            ble_connected_flag = False # Update connection status
+            return None
+        
+        print(f"Received raw BLE data: {received_data_str}") # Print raw data for debugging
+
+        # Assuming data format is "type,value1,value2,..."
+        parts = received_data_str.split(',')
+        data_type = parts[0].strip().lower() # Normalize type string
+
+        if data_type == "notes":
+            ble_notes(parts[1].strip())
+            return ("notes",)
+        elif data_type == "web":
+            ble_web(parts[1].strip())
+            return ("web",)
+        elif data_type == "d_coordinates":
+            if len(parts) >= 4:
+                try:
+                    dx = int(parts[1].strip())
+                    dy = int(parts[2].strip())
+                    # Convert 'true'/'false' string to boolean
+                    click = parts[3].strip().lower() == 'true'
+                    x, y = ble_cursor_handler(dx, dy)
+                    return ("coor", x, y, click)
+                except ValueError as ve:
+                    print(f"Error converting coordinate/click data: {ve}. Data: {received_data_str}")
+                    return None
+            else:
+                print(f"Malformed 'd_coordinates' data: {received_data_str}")
+                return None
+        else:
+            print(f"Unknown BLE data type received: {data_type}")
+            return None
     except Exception as e:
-        print(f"Error receiving BLE data: {e}")
-        # Consider re-connecting or marking connection as bad
+        print(f"General error during BLE receive: {e}")
+        ble_connected_flag = False # Assume disconnection on general error
+        # Consider calling Client.close(ble_client) here to clean up
         return None
 
 # --- Display Drawing Functions ---
@@ -175,6 +218,9 @@ def is_within_element(element: dict, x_check: int, y_check: int) -> bool:
                 cy = (y1 + y2) / 2
                 a = abs(x2 - x1) / 2 # horizontal semi-axis
                 b = abs(y2 - y1) / 2 # vertical semi-axis
+                # Avoid division by zero if semi-axis is 0
+                if (a == 0 and x_check != cx) or (b == 0 and y_check != cy):
+                    return False
                 if (a == 0 or b == 0) or (((x_check - cx)**2) / (a**2) + ((y_check - cy)**2) / (b**2) <= 1):
                     return True
             else: # Rectangle
@@ -182,12 +228,15 @@ def is_within_element(element: dict, x_check: int, y_check: int) -> bool:
     
     return False
 
-def cursor_handler(x_cursor: int, y_cursor: int, clicked: bool) -> None:
+def cursor_handler(x_cursor: int | None, y_cursor: int | None, clicked: bool) -> None:
     """
     Handles cursor interaction with display elements.
     If an element is "focused" by the cursor, actions can be triggered,
     especially if 'clicked' is true.
     """
+    if x_cursor is None or y_cursor is None:
+        return # Cannot handle cursor if coordinates are unknown
+
     for element in display_elements:
         if is_within_element(element, x_cursor, y_cursor):
             # Element is under the cursor
@@ -303,7 +352,8 @@ def clock() -> None:
 def death_button() -> None:
     """Adds an 'Off button' to the display."""
     button_text = "OFF" # More intuitive text
-    button_x, button_y = device_width - font.getbbox(button_text)[2] - 5, 5 # Position at top-right
+    # Position at top-right, accounting for text width
+    button_x, button_y = device_width - font.getbbox(button_text)[2] - 5, 5
     add_text((button_x, button_y), button_text, fill="white", id="Off button")
 
 # --- Main GUI Loop Function ---
@@ -318,7 +368,6 @@ def GUI_loop_content(x_cursor: int | None, y_cursor: int | None, click: bool) ->
     clock()
 
     # Draw the cursor at its current position if it exists
-    # The cursor's position is updated by update_cursor_on_display
     # We call it here to ensure it's always drawn if input provides coordinates
     if x_cursor is not None and y_cursor is not None:
         update_cursor_on_display(x_cursor, y_cursor)
@@ -340,7 +389,7 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
     if cam_flag:
         print("Running in camera mode.")
         if queue is None:
-            print("Error: Camera mode requires a multiprocessing Queue.")
+            print("Error: Camera mode requires a multiprocessing Queue. Exiting.")
             return
     elif bl_flag:
         print("Running in Bluetooth mode.")
@@ -348,50 +397,64 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
         print("No input mode specified. Please use -bl or -cam. Exiting.")
         return
 
+    # Run the initialization sequence
     initializing()
 
-    current_x_cursor, current_y_cursor, current_click = None, None, False
+    # Initialize cursor state for the main loop
+    current_x_cursor, current_y_cursor, current_click = cursor_coordinates[0], cursor_coordinates[1], False
 
     while not death_flag:
         if cam_flag:
             try:
                 # Expects (x, y, click) from the camera process via the queue
-                data = queue.get(timeout=0.1) # Non-blocking or with a short timeout
+                # Use a small timeout to keep the loop responsive even without new data
+                data = queue.get(timeout=0.05) # Get data from the queue
                 current_x_cursor, current_y_cursor, current_click = data
             except multiprocessing.queues.Empty:
-                # No new data, use last known cursor position or handle as needed
+                # No new data, just use the last known cursor position and no click
+                current_click = False # Assume no click if no new data
                 pass
             except Exception as e:
                 print(f"Error reading from camera queue: {e}")
-                current_x_cursor, current_y_cursor, current_click = None, None, False
+                current_x_cursor, current_y_cursor, current_click = None, None, False # Reset on error
 
         elif bl_flag:
             if not ble_connected_flag:
                 ble_connect()
-                # If connection fails, wait a bit before retrying
+                # If connection fails, wait a bit before retrying to avoid rapid attempts
                 if not ble_connected_flag:
                     sleep(2)
-                    continue
+                    continue # Skip to next loop iteration if not connected
             
+            # Attempt to receive BLE data
             ble_result = ble_receive()
             if ble_result:
                 if ble_result[0] == "coor":
+                    # Update cursor state if coordinates received
                     current_x_cursor, current_y_cursor, current_click = ble_result[1], ble_result[2], ble_result[3]
-                # Other BLE results like "notes" or "web" are handled within ble_receive
-                # and don't directly update current_x_cursor, current_y_cursor, current_click.
-                # If these types of data should also update the display, they need to be drawn.
-                # ble_notes/ble_web are already called inside ble_receive, so they modify display_elements.
+                else:
+                    # For "notes" or "web", no cursor movement is expected, so reset click
+                    current_click = False
             else:
-                # No BLE data received, use last known cursor position
-                pass
+                # No BLE data received, use last known cursor position, and no click
+                current_click = False
             
         GUI_loop_content(current_x_cursor, current_y_cursor, current_click)
 
     print("Application shutdown initiated.")
+    # Clean up and display a shutdown message
     display_clear()
     add_text((device_width // 2 - 20, device_height // 2 - 5), "Shutting down...", fill="white")
     sleep(2)
     display_clear()
+    # Close BLE client if connected
+    if ble_connected_flag and ble_client:
+        try:
+            Client.close(ble_client)
+            print("BLE client closed.")
+        except Exception as e:
+            print(f"Error closing BLE client: {e}")
+
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
@@ -410,30 +473,18 @@ if __name__ == "__main__":
         print("Error: No input mode specified. Please use -bl or -cam.")
         sys.exit(1)
 
-    # Initialize queue for camera mode
+    # Initialize queue for camera mode if selected
     camera_queue = None
     if args.camera:
         camera_queue = multiprocessing.Queue()
-        # In a real application, you'd start another process here
-        # that feeds (x, y, click) data into camera_queue.
-        # Example for testing without a camera process:
-        # def dummy_camera_feeder(q):
-        #     x, y = 0, 0
-        #     while True:
-        #         q.put((x % device_width, y % device_height, False))
-        #         x += 5
-        #         y += 3
-        #         sleep(0.1)
-        # feeder_process = multiprocessing.Process(target=dummy_camera_feeder, args=(camera_queue,))
-        # feeder_process.start()
+        # IMPORTANT: In a real camera setup, you would start another process here
+        # that continuously captures camera input and puts (x, y, click) tuples
+        # into the 'camera_queue'. For testing, you might use a dummy feeder process.
+        print("Camera mode selected. Ensure a separate process is feeding data to the queue.")
 
     # Start the main GUI process
     gui_process = multiprocessing.Process(target=main, args=(camera_queue, args.bluetooth, args.camera))
     gui_process.start()
     gui_process.join() # Wait for the GUI process to finish
-    
-    # if args.camera:
-    #     feeder_process.terminate() # Clean up dummy feeder if used
-    #     feeder_process.join()
 
     print("Application process terminated.")
