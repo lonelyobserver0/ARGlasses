@@ -3,11 +3,15 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1309
 from PIL import ImageFont
 from time import sleep, localtime
-from ble_references import Client # Import the Client class from your updated module
+from ble_references import Client # Importa il Client per la modalità Bluetooth
 import sys
 import multiprocessing
-import argparse # For better command-line argument parsing
+import argparse
 import socket # Required for socket type hinting
+
+# Importa la funzione start_hand_tracking dal nuovo file
+from hand_tracker import start_hand_tracking # Assicurati che hand_tracker.py sia nella stessa directory
+
 
 # --- Configuration ---
 # Font for display text. Ensure 'NixieOne.ttf' is in the same directory or provide a full path.
@@ -45,19 +49,19 @@ def ble_connect() -> None:
     """
     global ble_client, ble_connected_flag
     try:
-        print("Attempting to connect to BLE client...")
+        print("BLE Client: Attempting to connect...")
         # Client.connect now returns the socket or None
         connected_socket = Client.connect()
         if connected_socket:
             ble_client = connected_socket
             ble_connected_flag = True
-            print("BLE connected successfully.")
+            print("BLE Client: Connected successfully.")
         else:
             ble_connected_flag = False
-            print("BLE connection failed: Client.connect returned None.")
+            print("BLE Client: Connection failed: Client.connect returned None.")
     except Exception as e:
         ble_connected_flag = False
-        print(f"BLE connection failed (exception): {e}")
+        print(f"BLE Client: Connection failed (exception): {e}")
 
 def ble_notes(data: str) -> None:
     """Displays notes received via BLE on the screen."""
@@ -83,7 +87,7 @@ def ble_receive():
     global ble_connected_flag # Need to modify this if client disconnects
 
     if not ble_client:
-        print("BLE client not connected. Cannot receive data.")
+        print("BLE Client: Not connected. Cannot receive data.")
         ble_connected_flag = False # Ensure flag is false if client is None
         return None
 
@@ -93,11 +97,11 @@ def ble_receive():
         
         if received_data_str is None:
             # This indicates disconnection or no data
-            print("BLE client received no data or disconnected.")
+            print("BLE Client: Received no data or disconnected.")
             ble_connected_flag = False # Update connection status
             return None
         
-        print(f"Received raw BLE data: {received_data_str}") # Print raw data for debugging
+        print(f"BLE Client: Received raw data: {received_data_str}") # Print raw data for debugging
 
         # Assuming data format is "type,value1,value2,..."
         parts = received_data_str.split(',')
@@ -119,16 +123,16 @@ def ble_receive():
                     x, y = ble_cursor_handler(dx, dy)
                     return ("coor", x, y, click)
                 except ValueError as ve:
-                    print(f"Error converting coordinate/click data: {ve}. Data: {received_data_str}")
+                    print(f"BLE Client: Error converting coordinate/click data: {ve}. Data: {received_data_str}")
                     return None
             else:
-                print(f"Malformed 'd_coordinates' data: {received_data_str}")
+                print(f"BLE Client: Malformed 'd_coordinates' data: {received_data_str}")
                 return None
         else:
-            print(f"Unknown BLE data type received: {data_type}")
+            print(f"BLE Client: Unknown data type received: {data_type}")
             return None
     except Exception as e:
-        print(f"General error during BLE receive: {e}")
+        print(f"BLE Client: General error during receive: {e}")
         ble_connected_flag = False # Assume disconnection on general error
         # Consider calling Client.close(ble_client) here to clean up
         return None
@@ -245,11 +249,11 @@ def cursor_handler(x_cursor: int | None, y_cursor: int | None, clicked: bool) ->
 
             if clicked:
                 element_id = element.get('id')
-                print(f"Element clicked: {element_id}") # For debugging
+                print(f"Cursor: Element clicked: {element_id}") # For debugging
                 if element_id == "Off button":
                     global death_flag
                     death_flag = True
-                    print("Death flag set. Shutting down...")
+                    print("Cursor: Death flag set. Shutting down...")
                 # Add more button actions here:
                 # elif element_id == "Some other button":
                 #     # Do something
@@ -376,7 +380,7 @@ def GUI_loop_content(x_cursor: int | None, y_cursor: int | None, click: bool) ->
     cursor_handler(x_cursor, y_cursor, click)
     
     # Small delay to make updates visible
-    sleep(0.1) # Reduced sleep for potentially smoother updates
+    sleep(0.05) # Further reduced sleep for smoother updates / faster response
 
 # --- Main Application Entry Point ---
 def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_flag: bool = False) -> None:
@@ -384,17 +388,26 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
     Main function to run the OLED display application.
     Handles different input modes (camera or Bluetooth).
     """
-    print("Application started.")
+    print("OLED GUI: Application started.")
     
     if cam_flag:
-        print("Running in camera mode.")
+        print("OLED GUI: Running in camera mode.")
         if queue is None:
-            print("Error: Camera mode requires a multiprocessing Queue. Exiting.")
+            print("OLED GUI: Error: Camera mode requires a multiprocessing Queue. Exiting.")
             return
+        # Avvia il processo del tracciatore di mano
+        # Passiamo le dimensioni del display OLED al tracciatore per il mapping delle coordinate
+        hand_tracker_process = multiprocessing.Process(
+            target=start_hand_tracking,
+            args=(queue, device_width, device_height)
+        )
+        hand_tracker_process.start()
+        print("OLED GUI: Hand tracking process started.")
+
     elif bl_flag:
-        print("Running in Bluetooth mode.")
+        print("OLED GUI: Running in Bluetooth mode.")
     else:
-        print("No input mode specified. Please use -bl or -cam. Exiting.")
+        print("OLED GUI: No input mode specified. Please use -bl or -cam. Exiting.")
         return
 
     # Run the initialization sequence
@@ -408,14 +421,14 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
             try:
                 # Expects (x, y, click) from the camera process via the queue
                 # Use a small timeout to keep the loop responsive even without new data
-                data = queue.get(timeout=0.05) # Get data from the queue
+                data = queue.get(timeout=0.01) # Very small timeout for responsiveness
                 current_x_cursor, current_y_cursor, current_click = data
             except multiprocessing.queues.Empty:
                 # No new data, just use the last known cursor position and no click
                 current_click = False # Assume no click if no new data
                 pass
             except Exception as e:
-                print(f"Error reading from camera queue: {e}")
+                print(f"OLED GUI: Error reading from camera queue: {e}")
                 current_x_cursor, current_y_cursor, current_click = None, None, False # Reset on error
 
         elif bl_flag:
@@ -441,27 +454,35 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
             
         GUI_loop_content(current_x_cursor, current_y_cursor, current_click)
 
-    print("Application shutdown initiated.")
+    print("OLED GUI: Application shutdown initiated.")
     # Clean up and display a shutdown message
     display_clear()
     add_text((device_width // 2 - 20, device_height // 2 - 5), "Shutting down...", fill="white")
     sleep(2)
     display_clear()
+    
+    # Terminates the hand tracking process if it was started
+    if cam_flag and 'hand_tracker_process' in locals() and hand_tracker_process.is_alive():
+        print("OLED GUI: Terminating hand tracking process...")
+        hand_tracker_process.terminate()
+        hand_tracker_process.join()
+        print("OLED GUI: Hand tracking process terminated.")
+
     # Close BLE client if connected
     if ble_connected_flag and ble_client:
         try:
             Client.close(ble_client)
-            print("BLE client closed.")
+            print("OLED GUI: BLE client closed.")
         except Exception as e:
-            print(f"Error closing BLE client: {e}")
+            print(f"OLED GUI: Error closing BLE client: {e}")
 
 
 # --- Main Execution Block ---
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Setup argument parser
     parser = argparse.ArgumentParser(description="OLED Display GUI with external input.")
     parser.add_argument("-bl", "--bluetooth", action="store_true", help="Enable Bluetooth input mode.")
-    parser.add_argument("-cam", "--camera", action="store_true", help="Enable Camera input mode (requires a queue).")
+    parser.add_argument("-cam", "--camera", action="store_true", help="Enable Camera input mode (requires MediaPipe and OpenCV).")
     
     args = parser.parse_args()
 
@@ -477,14 +498,12 @@ if __name__ == "__main__":
     camera_queue = None
     if args.camera:
         camera_queue = multiprocessing.Queue()
-        # IMPORTANT: In a real camera setup, you would start another process here
-        # that continuously captures camera input and puts (x, y, click) tuples
-        # into the 'camera_queue'. For testing, you might use a dummy feeder process.
-        print("Camera mode selected. Ensure a separate process is feeding data to the queue.")
+        print("OLED GUI: Camera mode selected. Camera stream will be processed by hand_tracker.")
 
     # Start the main GUI process
     gui_process = multiprocessing.Process(target=main, args=(camera_queue, args.bluetooth, args.camera))
     gui_process.start()
     gui_process.join() # Wait for the GUI process to finish
 
-    print("Application process terminated.")
+    print("OLED GUI: Main application process terminated.")
+
