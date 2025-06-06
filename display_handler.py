@@ -10,8 +10,7 @@ import argparse
 import socket # Required for socket type hinting
 
 # Importa la funzione start_hand_tracking dal nuovo file
-from hand_tracker import start_hand_tracking # Assicurati che hand_tracker.py sia nella stessa directory
-
+from hand_cursor import start_hand_tracking # ASSICURATI CHE IL NOME DEL FILE SIA CORRETTO
 
 # --- Configuration ---
 # Font for display text. Ensure 'NixieOne.ttf' is in the same directory or provide a full path.
