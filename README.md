@@ -1,9 +1,5 @@
 # Some commands:
 
-scp C:\Users\gmula\Documents\GitHub\ARGlasses\ble_references.py C:\Users\gmula\Documents\GitHub\ARGlasses\display_handler.py pi@raspberrypi:/home/pi/Code/ARGlasses
-
-This:
-
 cd Code/ARGlasses
 source /home/pi/luma-env/bin/activate
 
@@ -15,7 +11,7 @@ source arglasses.sh
 
 ### Description from _luma_ docs:
 
-![Luma tables](images/luma-pin.png)
+![Luma tables](assets/luma-pin.png)
 
 ### Phycal PINs (on Zero 2 W, check for other models)
 (The first is the one opposite to micro usbs to the left, the second the first on the right, the third second on the left and so on):
@@ -32,4 +28,4 @@ source arglasses.sh
 
 ### Raspberry pi zero 2 W Pinout
 
-![Raspberry pi zero 2 W](images/BOARD-Layout-CMPLETE_800x506.jpg)
+![Raspberry pi zero 2 W](assets/BOARD-Layout-CMPLETE_800x506.jpg)
