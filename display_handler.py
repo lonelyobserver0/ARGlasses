@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from luma.core.interface.serial import spi
 from luma.core.render import canvas
 from luma.oled.device import ssd1309
