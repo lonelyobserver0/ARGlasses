@@ -5,15 +5,15 @@ from luma.core.render import canvas
 from luma.oled.device import ssd1309
 from PIL import ImageFont
 from time import sleep, localtime
-from ble_references import Client # Importa il Client per la modalità Bluetooth
 import sys
 import multiprocessing
 import argparse
-import socket # Required for socket type hinting
+import socket
+from ble_references import Client
 from hand_cursor import start_hand_tracking
 
 # --- Configuration ---
-# Font for display text. Ensure 'NixieOne.ttf' is in the same directory or provide a full path.
+# Font for display text.
 try:
     font = ImageFont.truetype("NixieOne.ttf", 10) # Changed font size for better visibility
 except IOError:
