@@ -303,6 +303,10 @@ def GUI_loop_content(x_cursor: Union[int, None], y_cursor: Union[int, None], cli
 def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False, cam_flag: bool = False) -> None: # Usa Union
     print("OLED GUI: Application started.")
     
+    # Decide la modalità operativa
+    # Se né -cam né -bl sono specificati, si attiva la modalità standalone
+    standalone_mode = not bl_flag and not cam_flag
+
     if cam_flag:
         print("OLED GUI: Running in camera mode.")
         if queue is None:
@@ -317,12 +321,20 @@ def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False
 
     elif bl_flag:
         print("OLED GUI: Running in Bluetooth mode.")
+    elif standalone_mode: # Nuova condizione per la modalità standalone
+        print("OLED GUI: Running in standalone mode (no external input).")
+        # In modalità standalone, non avviamo processi di input esterni.
+        # Il cursore rimarrà fisso al centro e non ci saranno click da input esterni.
     else:
-        print("OLED GUI: No input mode specified. Please use -bl or -cam. Exiting.")
+        # Questo blocco non dovrebbe essere raggiunto data la logica sopra,
+        # ma è mantenuto come fallback.
+        print("OLED GUI: No input mode specified. This state should not be reached. Exiting.")
         return
 
     initializing()
 
+    # Inizializza la posizione del cursore e lo stato del click
+    # In modalità standalone, il cursore rimane fisso e non clicca
     current_x_cursor, current_y_cursor, current_click = cursor_coordinates[0], cursor_coordinates[1], False
 
     while not death_flag:
@@ -331,7 +343,7 @@ def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False
                 data = queue.get(timeout=0.01)
                 current_x_cursor, current_y_cursor, current_click = data
             except multiprocessing.queues.Empty:
-                current_click = False
+                current_click = False # Nessun click se non ci sono nuovi dati dalla camera
                 pass
             except Exception as e:
                 print(f"OLED GUI: Error reading from camera queue: {e}")
@@ -349,10 +361,15 @@ def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False
                 if ble_result[0] == "coor":
                     current_x_cursor, current_y_cursor, current_click = ble_result[1], ble_result[2], ble_result[3]
                 else:
-                    current_click = False
+                    current_click = False # Nessun click per note/web
             else:
-                current_click = False
+                current_click = False # Nessun click se non ci sono dati BLE
             
+        elif standalone_mode:
+            # In modalità standalone, il cursore non si muove e non si clicca automaticamente
+            # i valori di current_x_cursor, current_y_cursor, current_click rimangono quelli iniziali
+            pass # Non fa nulla, mantenendo il cursore fisso e senza click
+
         GUI_loop_content(current_x_cursor, current_y_cursor, current_click)
 
     print("OLED GUI: Application shutdown initiated.")
@@ -361,12 +378,14 @@ def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False
     sleep(2)
     display_clear()
     
+    # Terminates the hand tracking process if it was started
     if cam_flag and 'hand_tracker_process' in locals() and hand_tracker_process.is_alive():
         print("OLED GUI: Terminating hand tracking process...")
         hand_tracker_process.terminate()
         hand_tracker_process.join()
         print("OLED GUI: Hand tracking process terminated.")
 
+    # Close BLE client if connected
     if ble_connected_flag and ble_client:
         try:
             Client.close(ble_client)
@@ -377,24 +396,26 @@ def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False
 
 # --- Main Execution Block ---
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="OLED Display GUI with external input.")
+    parser = argparse.ArgumentParser(description="OLED Display GUI with external input or standalone mode.")
     parser.add_argument("-bl", "--bluetooth", action="store_true", help="Enable Bluetooth input mode.")
     parser.add_argument("-cam", "--camera", action="store_true", help="Enable Camera input mode (requires MediaPipe and OpenCV).")
     
     args = parser.parse_args()
 
+    # Logica per gestire le modalità:
+    # Se sia -bl che -cam sono specificati, errore.
+    # Se nessuno dei due è specificato, si assume la modalità standalone.
     if args.bluetooth and args.camera:
         print("Error: Please select either Bluetooth (-bl) or Camera (-cam) mode, not both.")
         sys.exit(1)
-    if not args.bluetooth and not args.camera:
-        print("Error: No input mode specified. Please use -bl or -cam.")
-        sys.exit(1)
-
+    
+    # Inizializza la coda per la modalità camera, se selezionata
     camera_queue = None
     if args.camera:
         camera_queue = multiprocessing.Queue()
         print("OLED GUI: Camera mode selected. Camera stream will be processed by hand_tracker.")
-
+    
+    # Passa i flag per la modalità a main
     gui_process = multiprocessing.Process(target=main, args=(camera_queue, args.bluetooth, args.camera))
     gui_process.start()
     gui_process.join()
