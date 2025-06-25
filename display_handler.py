@@ -1,55 +1,44 @@
-#!/usr/bin/python3
-
 from luma.core.interface.serial import spi
 from luma.core.render import canvas
 from luma.oled.device import ssd1309
 from PIL import ImageFont
 from time import sleep, localtime
+from ble_references import Client
 import sys
 import multiprocessing
 import argparse
 import socket
-from ble_references import Client
+from typing import Union # Importa Union
+
 from hand_cursor import start_hand_tracking
 
 # --- Configuration ---
-# Font for display text.
 try:
-    font = ImageFont.truetype("NixieOne.ttf", 10) # Changed font size for better visibility
+    font = ImageFont.truetype("NixieOne.ttf", 10)
 except IOError:
     print("NixieOne.ttf font not found. Using default font.")
     font = ImageFont.load_default()
 
 # --- Display Setup ---
-# Initialize SPI interface and SSD1309 OLED device
-# These values (device=0, port=0) are common for Raspberry Pi, adjust if needed.
 serial = spi(device=0, port=0)
 device = ssd1309(serial)
 device_width = device.width
 device_height = device.height
 
-# List to hold elements to be drawn on the display
 display_elements: list[dict] = []
 
-# Cursor properties
-cursor_coordinates: tuple[int, int] = (device_width // 2, device_height // 2) # Start cursor in center
-cursor_radius: int = min(device_width, device_height) // 8 # Increased radius for better visibility
+cursor_coordinates: tuple[int, int] = (device_width // 2, device_height // 2)
+cursor_radius: int = min(device_width, device_height) // 8
 
-# Global flags and BLE client instance
 death_flag: bool = False
-ble_client: socket.socket | None = None # This will hold the connected Bluetooth client socket
-ble_connected_flag: bool = False # Flag to track BLE connection status
+ble_client: Union[socket.socket, None] = None # Usa Union
+ble_connected_flag: bool = False
 
 # --- BLE Functions ---
 def ble_connect() -> None:
-    """
-    Attempts to connect to the BLE client using the Client class from ble_references.
-    Updates the global ble_client and ble_connected_flag.
-    """
     global ble_client, ble_connected_flag
     try:
         print("BLE Client: Attempting to connect...")
-        # Client.connect now returns the socket or None
         connected_socket = Client.connect()
         if connected_socket:
             ble_client = connected_socket
@@ -63,48 +52,37 @@ def ble_connect() -> None:
         print(f"BLE Client: Connection failed (exception): {e}")
 
 def ble_notes(data: str) -> None:
-    """Displays notes received via BLE on the screen."""
-    # Define a clear area for notes display at the bottom of the screen
     notes_bbox = (5, device_height - 20, device_width - 5, device_height - 5)
     add_rectangle(notes_bbox, outline="white", fill="black", id="notes_display")
     add_text((notes_bbox[0] + 2, notes_bbox[1] + 2), data, fill="white", id="notes_text")
     print(f"BLE Notes: {data}")
 
 def ble_web(data: str) -> None:
-    """Displays web data received via BLE on the screen."""
-    # Define a clear area for web data display, above notes
     web_bbox = (5, device_height - 40, device_width - 5, device_height - 25)
     add_rectangle(web_bbox, outline="white", fill="black", id="web_display")
     add_text((web_bbox[0] + 2, web_bbox[1] + 2), data, fill="white", id="web_text")
     print(f"BLE Web Data: {data}")
 
 def ble_receive():
-    """
-    Receives data from the BLE client using the Client class from ble_references.
-    Processes received data and returns relevant information for GUI updates.
-    """
-    global ble_connected_flag # Need to modify this if client disconnects
+    global ble_connected_flag
 
     if not ble_client:
         print("BLE Client: Not connected. Cannot receive data.")
-        ble_connected_flag = False # Ensure flag is false if client is None
+        ble_connected_flag = False
         return None
 
     try:
-        # Client.receive now returns Optional[str]
         received_data_str = Client.receive(ble_client)
         
         if received_data_str is None:
-            # This indicates disconnection or no data
             print("BLE Client: Received no data or disconnected.")
-            ble_connected_flag = False # Update connection status
+            ble_connected_flag = False
             return None
         
-        print(f"BLE Client: Received raw data: {received_data_str}") # Print raw data for debugging
+        print(f"BLE Client: Received raw data: {received_data_str}")
 
-        # Assuming data format is "type,value1,value2,..."
         parts = received_data_str.split(',')
-        data_type = parts[0].strip().lower() # Normalize type string
+        data_type = parts[0].strip().lower()
 
         if data_type == "notes":
             ble_notes(parts[1].strip())
@@ -117,7 +95,6 @@ def ble_receive():
                 try:
                     dx = int(parts[1].strip())
                     dy = int(parts[2].strip())
-                    # Convert 'true'/'false' string to boolean
                     click = parts[3].strip().lower() == 'true'
                     x, y = ble_cursor_handler(dx, dy)
                     return ("coor", x, y, click)
@@ -132,13 +109,11 @@ def ble_receive():
             return None
     except Exception as e:
         print(f"BLE Client: General error during receive: {e}")
-        ble_connected_flag = False # Assume disconnection on general error
-        # Consider calling Client.close(ble_client) here to clean up
+        ble_connected_flag = False
         return None
 
 # --- Display Drawing Functions ---
 def redraw_display() -> None:
-    """Clears the display and redraws all elements from the display_elements list."""
     with canvas(device) as draw:
         for element in display_elements:
             if element['type'] == 'rectangle':
@@ -147,21 +122,16 @@ def redraw_display() -> None:
                 draw.text(element['position'], element['text'], fill=element['fill'], font=font)
             elif element['type'] == 'ellipse':
                 draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
-            elif element['type'] == 'circle': # Circles are drawn using ellipse with equal axes
+            elif element['type'] == 'circle':
                 draw.ellipse(element['bbox'], outline=element['outline'], fill=element['fill'])
 
 def display_clear() -> None:
-    """Clears all elements from the internal list and the physical display."""
     global display_elements
     device.clear()
     display_elements = []
 
-def add_element(element_type: str, bbox: tuple = None, position: tuple = None, text: str = None,
-                outline: str = "white", fill: str = "black", id: str = None) -> None:
-    """
-    Adds a new drawing element to the display_elements list.
-    Redraws the display immediately.
-    """
+def add_element(element_type: str, bbox: Union[tuple, None] = None, position: Union[tuple, None] = None, text: Union[str, None] = None,
+                outline: str = "white", fill: str = "black", id: Union[str, None] = None) -> None: # Usa Union
     new_element = {
         'type': element_type,
         'bbox': bbox,
@@ -174,36 +144,27 @@ def add_element(element_type: str, bbox: tuple = None, position: tuple = None, t
     display_elements.append(new_element)
     redraw_display()
 
-def add_rectangle(bbox: tuple[int, int, int, int], outline: str = "white", fill: str = "black", id: str = None) -> None:
-    """Adds a rectangle element."""
+def add_rectangle(bbox: tuple[int, int, int, int], outline: str = "white", fill: str = "black", id: Union[str, None] = None) -> None: # Usa Union
     add_element('rectangle', bbox=bbox, outline=outline, fill=fill, id=id)
 
-def add_text(position: tuple[int, int], text: str, fill: str = "white", id: str = None) -> None:
-    """Adds a text element."""
+def add_text(position: tuple[int, int], text: str, fill: str = "white", id: Union[str, None] = None) -> None: # Usa Union
     add_element('text', position=position, text=text, fill=fill, id=id)
 
-def add_ellipse(bbox: tuple[int, int, int, int], outline: str = "white", fill: str = "black", id: str = None) -> None:
-    """Adds an ellipse element."""
+def add_ellipse(bbox: tuple[int, int, int, int], outline: str = "white", fill: str = "black", id: Union[str, None] = None) -> None: # Usa Union
     add_element('ellipse', bbox=bbox, outline=outline, fill=fill, id=id)
 
-def add_circle(x_center: int, y_center: int, radius: int, outline: str = "white", fill: str = "black", id: str = None) -> None:
-    """
-    Adds a circle element.
-    bbox is calculated from (x_center, y_center, radius).
-    """
+def add_circle(x_center: int, y_center: int, radius: int, outline: str = "white", fill: str = "black", id: Union[str, None] = None) -> None: # Usa Union
     bbox = (x_center - radius, y_center - radius, x_center + radius, y_center + radius)
     add_element('circle', bbox=bbox, outline=outline, fill=fill, id=id)
 
 # --- Cursor Logic ---
 def is_within_element(element: dict, x_check: int, y_check: int) -> bool:
-    """Checks if given coordinates are within the bounds of a display element."""
     element_type = element['type']
     
     if element_type == 'text':
         x, y = element['position']
         text = element['text']
-        # Use getbbox for text dimensions (replaces deprecated getsize)
-        text_bbox = font.getbbox(text) # Returns (left, top, right, bottom) relative to (0,0)
+        text_bbox = font.getbbox(text)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         
@@ -213,80 +174,52 @@ def is_within_element(element: dict, x_check: int, y_check: int) -> bool:
     elif element_type in ['rectangle', 'ellipse', 'circle']:
         x1, y1, x2, y2 = element['bbox']
         if x1 <= x_check <= x2 and y1 <= y_check <= y2:
-            # For ellipses/circles, a more precise check involves the equation of the shape
-            # but for a simple bounding box check, this is sufficient.
-            # For perfect circle/ellipse check:
             if element_type in ['ellipse', 'circle']:
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
-                a = abs(x2 - x1) / 2 # horizontal semi-axis
-                b = abs(y2 - y1) / 2 # vertical semi-axis
-                # Avoid division by zero if semi-axis is 0
+                a = abs(x2 - x1) / 2
+                b = abs(y2 - y1) / 2
                 if (a == 0 and x_check != cx) or (b == 0 and y_check != cy):
                     return False
                 if (a == 0 or b == 0) or (((x_check - cx)**2) / (a**2) + ((y_check - cy)**2) / (b**2) <= 1):
                     return True
-            else: # Rectangle
+            else:
                 return True
     
     return False
 
-def cursor_handler(x_cursor: int | None, y_cursor: int | None, clicked: bool) -> None:
-    """
-    Handles cursor interaction with display elements.
-    If an element is "focused" by the cursor, actions can be triggered,
-    especially if 'clicked' is true.
-    """
+def cursor_handler(x_cursor: Union[int, None], y_cursor: Union[int, None], clicked: bool) -> None: # Usa Union
     if x_cursor is None or y_cursor is None:
-        return # Cannot handle cursor if coordinates are unknown
+        return
 
     for element in display_elements:
         if is_within_element(element, x_cursor, y_cursor):
-            # Element is under the cursor
-            # You can add visual feedback here, e.g., changing outline color of the element
-            # print(f"Cursor hovering over: {element.get('id', element.get('type'))}") # For debugging
-
             if clicked:
                 element_id = element.get('id')
-                print(f"Cursor: Element clicked: {element_id}") # For debugging
+                print(f"Cursor: Element clicked: {element_id}")
                 if element_id == "Off button":
                     global death_flag
                     death_flag = True
                     print("Cursor: Death flag set. Shutting down...")
-                # Add more button actions here:
-                # elif element_id == "Some other button":
-                #     # Do something
-                #     pass
 
 def update_cursor_on_display(x: int, y: int) -> None:
-    """
-    Updates the position of the visual cursor element on the display.
-    Ensures only one cursor is drawn.
-    """
     global cursor_coordinates
-    cursor_coordinates = (x, y) # Update the global cursor position
+    cursor_coordinates = (x, y)
 
-    # Find and update the existing cursor element
     cursor_found = False
     for i, element in enumerate(display_elements):
         if element.get('id') == 'main_cursor':
-            # Calculate new bbox for the circle
             bbox = (x - cursor_radius, y - cursor_radius, x + cursor_radius, y + cursor_radius)
             display_elements[i]['bbox'] = bbox
             cursor_found = True
             break
     
     if not cursor_found:
-        # If cursor element doesn't exist (first run), add it
         add_circle(x, y, cursor_radius, outline="white", id="main_cursor")
     
-    redraw_display() # Always redraw after cursor update
+    redraw_display()
 
 def ble_cursor_handler(dx: int, dy: int) -> tuple[int, int]:
-    """
-    Adjusts cursor coordinates based on BLE delta movements and updates its display.
-    Clamps cursor to display boundaries.
-    """
     current_x, current_y = cursor_coordinates
     
     new_x = max(0, min(device_width - 1, current_x + dx))
@@ -298,15 +231,12 @@ def ble_cursor_handler(dx: int, dy: int) -> tuple[int, int]:
 
 # --- Initializing Sequence ---
 def initializing() -> None:
-    """Displays an initialization sequence on the OLED."""
     display_clear()
     add_rectangle(device.bounding_box, outline="white", fill="black")
     
-    # Centered text
     yorha_text = "YoRHa"
     glory_text = "For the glory\nof Mankind"
     
-    # Using getbbox for precise text positioning
     yorha_bbox = font.getbbox(yorha_text)
     yorha_width = yorha_bbox[2] - yorha_bbox[0]
     yorha_height = yorha_bbox[3] - yorha_bbox[1]
@@ -342,51 +272,35 @@ def initializing() -> None:
 
 # --- GUI Elements ---
 def clock() -> None:
-    """Displays the current time on the top left of the screen."""
     current_time_obj = localtime()
     current_hour = current_time_obj.tm_hour
     current_min = current_time_obj.tm_min
     
-    # Format to ensure two digits
     time_str = f"{current_hour:02d}:{current_min:02d}"
     
     add_text((0, 0), time_str, fill="white", id="clock_display")
 
 def death_button() -> None:
-    """Adds an 'Off button' to the display."""
-    button_text = "OFF" # More intuitive text
-    # Position at top-right, accounting for text width
+    button_text = "OFF"
     button_x, button_y = device_width - font.getbbox(button_text)[2] - 5, 5
     add_text((button_x, button_y), button_text, fill="white", id="Off button")
 
 # --- Main GUI Loop Function ---
-def GUI_loop_content(x_cursor: int | None, y_cursor: int | None, click: bool) -> None:
-    """
-    Contains the common GUI display and interaction logic for each frame.
-    Called by both camera and BLE modes.
-    """
-    display_clear() # Always clear the display at the start of a new frame
+def GUI_loop_content(x_cursor: Union[int, None], y_cursor: Union[int, None], click: bool) -> None: # Usa Union
+    display_clear()
 
     death_button()
     clock()
 
-    # Draw the cursor at its current position if it exists
-    # We call it here to ensure it's always drawn if input provides coordinates
     if x_cursor is not None and y_cursor is not None:
         update_cursor_on_display(x_cursor, y_cursor)
 
-    # Handle cursor interaction with other elements
     cursor_handler(x_cursor, y_cursor, click)
     
-    # Small delay to make updates visible
-    sleep(0.05) # Further reduced sleep for smoother updates / faster response
+    sleep(0.05)
 
 # --- Main Application Entry Point ---
-def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_flag: bool = False) -> None:
-    """
-    Main function to run the OLED display application.
-    Handles different input modes (camera or Bluetooth).
-    """
+def main(queue: Union[multiprocessing.Queue, None] = None, bl_flag: bool = False, cam_flag: bool = False) -> None: # Usa Union
     print("OLED GUI: Application started.")
     
     if cam_flag:
@@ -394,8 +308,6 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
         if queue is None:
             print("OLED GUI: Error: Camera mode requires a multiprocessing Queue. Exiting.")
             return
-        # Avvia il processo del tracciatore di mano
-        # Passiamo le dimensioni del display OLED al tracciatore per il mapping delle coordinate
         hand_tracker_process = multiprocessing.Process(
             target=start_hand_tracking,
             args=(queue, device_width, device_height)
@@ -409,65 +321,52 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
         print("OLED GUI: No input mode specified. Please use -bl or -cam. Exiting.")
         return
 
-    # Run the initialization sequence
     initializing()
 
-    # Initialize cursor state for the main loop
     current_x_cursor, current_y_cursor, current_click = cursor_coordinates[0], cursor_coordinates[1], False
 
     while not death_flag:
         if cam_flag:
             try:
-                # Expects (x, y, click) from the camera process via the queue
-                # Use a small timeout to keep the loop responsive even without new data
-                data = queue.get(timeout=0.01) # Very small timeout for responsiveness
+                data = queue.get(timeout=0.01)
                 current_x_cursor, current_y_cursor, current_click = data
             except multiprocessing.queues.Empty:
-                # No new data, just use the last known cursor position and no click
-                current_click = False # Assume no click if no new data
+                current_click = False
                 pass
             except Exception as e:
                 print(f"OLED GUI: Error reading from camera queue: {e}")
-                current_x_cursor, current_y_cursor, current_click = None, None, False # Reset on error
+                current_x_cursor, current_y_cursor, current_click = None, None, False
 
         elif bl_flag:
             if not ble_connected_flag:
                 ble_connect()
-                # If connection fails, wait a bit before retrying to avoid rapid attempts
                 if not ble_connected_flag:
                     sleep(2)
-                    continue # Skip to next loop iteration if not connected
+                    continue
             
-            # Attempt to receive BLE data
             ble_result = ble_receive()
             if ble_result:
                 if ble_result[0] == "coor":
-                    # Update cursor state if coordinates received
                     current_x_cursor, current_y_cursor, current_click = ble_result[1], ble_result[2], ble_result[3]
                 else:
-                    # For "notes" or "web", no cursor movement is expected, so reset click
                     current_click = False
             else:
-                # No BLE data received, use last known cursor position, and no click
                 current_click = False
             
         GUI_loop_content(current_x_cursor, current_y_cursor, current_click)
 
     print("OLED GUI: Application shutdown initiated.")
-    # Clean up and display a shutdown message
     display_clear()
     add_text((device_width // 2 - 20, device_height // 2 - 5), "Shutting down...", fill="white")
     sleep(2)
     display_clear()
     
-    # Terminates the hand tracking process if it was started
     if cam_flag and 'hand_tracker_process' in locals() and hand_tracker_process.is_alive():
         print("OLED GUI: Terminating hand tracking process...")
         hand_tracker_process.terminate()
         hand_tracker_process.join()
         print("OLED GUI: Hand tracking process terminated.")
 
-    # Close BLE client if connected
     if ble_connected_flag and ble_client:
         try:
             Client.close(ble_client)
@@ -478,14 +377,12 @@ def main(queue: multiprocessing.Queue | None = None, bl_flag: bool = False, cam_
 
 # --- Main Execution Block ---
 if __name__ == '__main__':
-    # Setup argument parser
     parser = argparse.ArgumentParser(description="OLED Display GUI with external input.")
     parser.add_argument("-bl", "--bluetooth", action="store_true", help="Enable Bluetooth input mode.")
     parser.add_argument("-cam", "--camera", action="store_true", help="Enable Camera input mode (requires MediaPipe and OpenCV).")
     
     args = parser.parse_args()
 
-    # Ensure only one mode is selected
     if args.bluetooth and args.camera:
         print("Error: Please select either Bluetooth (-bl) or Camera (-cam) mode, not both.")
         sys.exit(1)
@@ -493,16 +390,13 @@ if __name__ == '__main__':
         print("Error: No input mode specified. Please use -bl or -cam.")
         sys.exit(1)
 
-    # Initialize queue for camera mode if selected
     camera_queue = None
     if args.camera:
         camera_queue = multiprocessing.Queue()
         print("OLED GUI: Camera mode selected. Camera stream will be processed by hand_tracker.")
 
-    # Start the main GUI process
     gui_process = multiprocessing.Process(target=main, args=(camera_queue, args.bluetooth, args.camera))
     gui_process.start()
-    gui_process.join() # Wait for the GUI process to finish
+    gui_process.join()
 
     print("OLED GUI: Main application process terminated.")
-
