@@ -23,7 +23,7 @@ try:
     print(f"Test Display: Tentativo di inizializzazione con SPI device={SPI_DEVICE}, port={SPI_PORT}...")
     
     # Tenta di creare un'istanza del dispositivo OLED
-    device = ssd1309(serial_interface)
+    device = ssd1309(serial_interface, gpio_DC=24, gpio_RST=25)
     print("Test Display: Display OLED inizializzato con successo.")
     print(f"Test Display: Larghezza: {device.width} pixel, Altezza: {device.height} pixel")
 
