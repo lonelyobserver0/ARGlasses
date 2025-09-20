@@ -1,26 +1,35 @@
 import time
+import keyboard
 from luma.core.interface.serial import spi
 from luma.oled.device import ssd1309
 from luma.core.render import canvas
 from PIL import ImageFont
 
 # Configurazione SPI
-# cs=0 significa CE0, se usi CE1 metti cs=1
 serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
 
-# Inizializza display SSD1309
+# Inizializza display
 device = ssd1309(serial, width=128, height=64, rotate=0)
 
-# Usa un font di sistema
-font = ImageFont.load_default()
+# Font
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
 font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 8)
 
-# Disegna qualcosa
-with canvas(device) as draw:
-    draw.text((10, 20), "Hello Waveshare!", font=font_small, fill=255)
+print("Premi 'q' per uscire")
 
-time.sleep(20)
+counter = 0
+while True:
+    # Disegna sul display
+    with canvas(device) as draw:
+        draw.text((10, 20), f"Contatore: {counter}", font=font_small, fill=255)
+    
+    time.sleep(1)
+    counter += 1
 
-# Pulizia: schermo vuoto
-with canvas(device) as draw:
-    pass
+    # Controlla se è stato premuto q
+    if keyboard.is_pressed("q"):
+        print("Hai premuto q, chiudo...")
+        break
+
+# Pulizia finale (schermo vuoto)
+device.clear()
