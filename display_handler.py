@@ -24,7 +24,7 @@ def set_brightness(percent):
 
 #------------------------------#
 
-set_brightness(10)
+set_brightness(100)
 
 counter = 0
 try:
