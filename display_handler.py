@@ -16,7 +16,7 @@ font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 counter = 0
 try:
     while True:
-        device.contrast(0)
+        device.contrast(255)
         with canvas(device) as draw:
             draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
 
