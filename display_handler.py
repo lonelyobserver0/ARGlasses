@@ -1,35 +1,38 @@
 import time
-import keyboard
+import curses
 from luma.core.interface.serial import spi
 from luma.oled.device import ssd1309
 from luma.core.render import canvas
 from PIL import ImageFont
 
-# Configurazione SPI
-serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
+def main(stdscr):
+    # Configurazione SPI
+    serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
+    device = ssd1309(serial, width=128, height=64, rotate=0)
 
-# Inizializza display
-device = ssd1309(serial, width=128, height=64, rotate=0)
+    # Font
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
 
-# Font
-font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
-font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 8)
+    curses.curs_set(0)          # Nasconde il cursore
+    stdscr.nodelay(True)        # Non blocca su getch()
+    stdscr.addstr(0, 0, "Premi q per uscire")
+    stdscr.refresh()
 
-print("Premi 'q' per uscire")
+    counter = 0
+    while True:
+        # Disegna sul display
+        with canvas(device) as draw:
+            draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
 
-counter = 0
-while True:
-    # Disegna sul display
-    with canvas(device) as draw:
-        draw.text((10, 20), f"Contatore: {counter}", font=font_small, fill=255)
-    
-    time.sleep(1)
-    counter += 1
+        time.sleep(1)
+        counter += 1
 
-    # Controlla se è stato premuto q
-    if keyboard.is_pressed("q"):
-        print("Hai premuto q, chiudo...")
-        break
+        # Controllo pressione tasto
+        c = stdscr.getch()
+        if c == ord("q"):
+            break
 
-# Pulizia finale (schermo vuoto)
-device.clear()
+    # Pulizia schermo OLED
+    device.clear()
+
+curses.wrapper(main)
