@@ -9,9 +9,22 @@ serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
 device = ssd1309(serial, width=128, height=64, rotate=0)
 
 # Font
-font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 6)
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
+
+def set_brightness(percent):
+    """
+    Imposta la luminosità del display in percentuale (0-100)
+    """
+    if percent < 0: percent = 0
+    if percent > 100: percent = 100
+
+    # Luma usa valori 0-255 per il contrasto
+    contrast_value = int((percent / 100) * 255)
+    device.contrast(contrast_value)
 
 #------------------------------#
+
+set_brightness(50)
 
 counter = 0
 try:
