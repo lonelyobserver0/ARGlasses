@@ -13,6 +13,7 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 
 # Usa un font di sistema
 font = ImageFont.load_default()
+font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 8)
 
 # Disegna qualcosa
 with canvas(device) as draw:
