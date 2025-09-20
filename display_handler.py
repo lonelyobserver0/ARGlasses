@@ -11,19 +11,12 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 # Font
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
 
-def set_brightness(percent):
-    if percent < 0: percent = 0
-    if percent > 100: percent = 100
-
-    contrast_value = int((percent / 100) * 255)
-    device.contrast(contrast_value)
-
 #------------------------------#
 
 counter = 0
 try:
     while True:
-        set_brightness(1)
+        device.contrast(0)
         with canvas(device) as draw:
             draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
 
