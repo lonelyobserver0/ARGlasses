@@ -17,7 +17,7 @@ font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono
 
 # Disegna qualcosa
 with canvas(device) as draw:
-    draw.text((10, 20), "Hello Waveshare!", font=font, fill=255)
+    draw.text((10, 20), "Hello Waveshare!", font=font_small, fill=255)
 
 time.sleep(20)
 
