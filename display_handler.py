@@ -20,8 +20,8 @@ except IOError:
     font = ImageFont.load_default()
 
 # --- Display Setup ---
-serial = spi(device=0, port=0)
-device = ssd1309(serial)
+serial = spi(device=0, port=0, gpio_DC=25, gpio_RST=27)
+device = ssd1309(serial, width=128, height=64, rotate=0)
 device_width = device.width
 device_height = device.height
 
