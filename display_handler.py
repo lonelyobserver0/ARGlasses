@@ -26,7 +26,7 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 
 # Font
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
-font_tom = ImageFont.load_path("tom-thumb.bdf")
+font_tom = ImageFont.load("tom-thumb.bdf")
 
 #------------------------------#
 
