@@ -1,38 +1,40 @@
 import time
-import curses
+import threading
 from luma.core.interface.serial import spi
 from luma.oled.device import ssd1309
 from luma.core.render import canvas
 from PIL import ImageFont
 
-def main(stdscr):
-    # Configurazione SPI
-    serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
-    device = ssd1309(serial, width=128, height=64, rotate=0)
+# Variabile di controllo
+running = True
 
-    # Font
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
-
-    curses.curs_set(0)          # Nasconde il cursore
-    stdscr.nodelay(True)        # Non blocca su getch()
-    stdscr.addstr(0, 0, "Premi q per uscire")
-    stdscr.refresh()
-
-    counter = 0
-    while True:
-        # Disegna sul display
-        with canvas(device) as draw:
-            draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
-
-        time.sleep(1)
-        counter += 1
-
-        # Controllo pressione tasto
-        c = stdscr.getch()
-        if c == ord("q"):
+def input_thread():
+    global running
+    while running:
+        key = input("Premi q e Invio per uscire: ")
+        if key.strip().lower() == "q":
+            running = False
             break
 
-    # Pulizia schermo OLED
-    device.clear()
+# Avvia il thread che ascolta la tastiera
+thread = threading.Thread(target=input_thread, daemon=True)
+thread.start()
 
-curses.wrapper(main)
+# Configurazione SPI
+serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
+device = ssd1309(serial, width=128, height=64, rotate=0)
+
+# Font
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
+
+counter = 0
+while running:
+    with canvas(device) as draw:
+        draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
+
+    time.sleep(1)
+    counter += 1
+
+# Pulizia finale schermo
+device.clear()
+print("Uscito dal programma.")
