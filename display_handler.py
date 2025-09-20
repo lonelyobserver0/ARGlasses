@@ -26,11 +26,12 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 
 # Font
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
+font_tom = ImageFont.load_path("font/tom-thumb.bdf")
 
 counter = 0
 while running:
     with canvas(device) as draw:
-        draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
+        draw.text((10, 20), f"Contatore: {counter}", font=font_tom, fill=255)
 
     time.sleep(1)
     counter += 1
