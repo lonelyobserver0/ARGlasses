@@ -12,23 +12,18 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
 
 def set_brightness(percent):
-    """
-    Imposta la luminosità del display in percentuale (0-100)
-    """
     if percent < 0: percent = 0
     if percent > 100: percent = 100
 
-    # Luma usa valori 0-255 per il contrasto
     contrast_value = int((percent / 100) * 255)
     device.contrast(contrast_value)
 
 #------------------------------#
 
-set_brightness(100)
-
 counter = 0
 try:
     while True:
+        set_brightness(1)
         with canvas(device) as draw:
             draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
 
