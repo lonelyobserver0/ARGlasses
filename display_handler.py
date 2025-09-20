@@ -1,8 +1,19 @@
+import RPi.GPIO as GPIO
 import time
 from luma.core.interface.serial import spi
 from luma.oled.device import ssd1309
 from luma.core.render import canvas
 from PIL import ImageFont
+
+
+# Il pin 12 (PWM) è collegato all'alimentazione del display,
+# in questo modo dovrebbe essere possibile controllarne la luminosità
+PWM_PIN = 12
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PWM_PIN, GPIO.OUT)
+pwm = GPIO.PWM(PWM_PIN, 1000)
+pwm.start(100)
+pwm.ChangeDutyCycle(30)
 
 # Configurazione SPI
 serial = spi(device=0, port=0, gpio_DC=24, gpio_RST=25)
@@ -11,12 +22,11 @@ device = ssd1309(serial, width=128, height=64, rotate=0)
 # Font
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
 
-#------------------------------#
+#--------------MAIN LOOP----------------#
 
 counter = 0
 try:
     while True:
-        device.contrast(255)
         with canvas(device) as draw:
             draw.text((10, 20), f"Contatore: {counter}", font=font, fill=255)
 
